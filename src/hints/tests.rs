@@ -2,10 +2,11 @@
 mod tests {
     use cairo_vm::serde::deserialize_program::ApTracking;
     use cairo_vm::types::exec_scope::ExecutionScopes;
+    use cairo_vm::vm::vm_core::VirtualMachine;
     use num_bigint::BigInt;
     use rstest::rstest;
 
-    use crate::hints::*;
+    use crate::hints::{is_on_curve, vars};
 
     macro_rules! references {
         ($num:expr) => {{
@@ -88,5 +89,22 @@ mod tests {
 
         let result = vm.get_integer(relocatable).unwrap().into_owned();
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_set_ap_to_actual_fee_hint() {
+        let mut vm = VirtualMachine::new(false);
+        // TODO: allocate memory?
+
+        let ids_data = Default::default();
+        let ap_tracking = ApTracking::default();
+
+        let mut exec_scopes = ExecutionScopes::new();
+
+        // TODO: inject execution_hepler (whose responsibility is this by design?)
+        // TODO: inject transaction data / fee
+
+        set_ap_to_actual_fee(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
+            .expect("set_ap_to_actual_fee() failed");
     }
 }
