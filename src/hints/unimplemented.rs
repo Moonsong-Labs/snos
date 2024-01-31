@@ -1,7 +1,5 @@
 use indoc::indoc;
 
-const IS_N_GE_TWO: &str = "memory[ap] = to_felt_or_relocatable(ids.n >= 2)";
-
 const IS_ON_CURVE: &str = "ids.is_on_curve = (y * y) % SECP_P == y_square_int";
 
 const SET_SYSCALL_PTR: &str = indoc! {r#"

@@ -6,6 +6,7 @@ mod unimplemented;
 
 use std::collections::{HashMap, HashSet};
 
+use num_bigint::BigInt;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor, HintProcessorData,
 };
@@ -334,5 +335,23 @@ pub fn breakpoint(
     println!("\tids -> {:?}", _ids_data);
 
     println!("\n-----------END BREAKPOINT-----------\n");
+    Ok(())
+}
+
+const IS_N_GE_TWO: &str = "memory[ap] = to_felt_or_relocatable(ids.n >= 2)";
+pub fn is_n_ge_two(
+    vm: &mut VirtualMachine,
+    _exec_scopes: &mut ExecutionScopes,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
+    _constants: &HashMap<String, Felt252>,
+) -> Result<(), HintError> {
+    if let Ok(cow_felt) = get_integer_from_var_name("n", vm, ids_data, ap_tracking) {
+       if cow_felt.as_ref() >= &Felt252::from(2) {
+           insert_value_into_ap(vm, Felt252::from(1))?; 
+       } else {
+           insert_value_into_ap(vm, Felt252::from(0))?;
+       }
+    }
     Ok(())
 }
