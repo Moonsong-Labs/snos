@@ -4,9 +4,11 @@ pub mod execution;
 pub mod syscalls;
 mod unimplemented;
 
+#[cfg(test)]
+mod test;
+
 use std::collections::{HashMap, HashSet};
 
-use num_bigint::BigInt;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor, HintProcessorData,
 };
@@ -346,12 +348,18 @@ pub fn is_n_ge_two(
     ap_tracking: &ApTracking,
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
-    if let Ok(cow_felt) = get_integer_from_var_name("n", vm, ids_data, ap_tracking) {
-       if cow_felt.as_ref() >= &Felt252::from(2) {
-           insert_value_into_ap(vm, Felt252::from(1))?; 
-       } else {
-           insert_value_into_ap(vm, Felt252::from(0))?;
-       }
+    match get_integer_from_var_name("n", vm, ids_data, ap_tracking) {
+        Ok(cow_felt) => {
+            let value = if cow_felt.as_ref() >= &Felt252::TWO {
+                Felt252::ONE
+            } else {
+                Felt252::ZERO
+            };
+            insert_value_into_ap(vm, value)?;
+        },
+        Err(e) => {
+            return Err(e);
+        }
     }
     Ok(())
 }
