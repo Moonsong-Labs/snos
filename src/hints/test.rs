@@ -6,22 +6,6 @@ mod test {
     };
     use crate::hints::*;
 
-    macro_rules! segments {
-        ($( (($si:expr, $off:expr), $val:tt) ),* $(,)? ) => {
-            {
-                let memory = memory!($( (($si, $off), $val) ),*);
-                $crate::vm::vm_memory::memory_segments::MemorySegmentManager {
-                    memory,
-                    segment_sizes: HashMap::new(),
-                    segment_used_sizes: None,
-                    public_memory_offsets: HashMap::new(),
-                }
-
-            }
-
-        };
-    }
-
     macro_rules! references {
         ($num: expr) => {{
             let mut references = cairo_vm::stdlib::collections::HashMap::<usize, HintReference>::new();
@@ -30,14 +14,6 @@ mod test {
             }
             references
         }};
-    }
-
-    macro_rules! add_segments {
-        ($vm:expr, $n:expr) => {
-            for _ in 0..$n {
-                $vm.segments.add();
-            }
-        };
     }
 
     macro_rules! ids_data {
