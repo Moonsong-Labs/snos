@@ -32,13 +32,14 @@ mod test {
         };
     }
     #[test]
-    fn test_is_n_ge_two_fail() {
+    fn test_is_n_ge_two() {
         let mut vm = VirtualMachine::new(false);
         let ids_data = ids_data!["n"];
         let ap_tracking = ApTracking::default();
         let mut exec_scopes: ExecutionScopes = ExecutionScopes::new();
 
         vm.set_fp(1);
+        vm.set_ap(1);
         vm.add_memory_segment();
         vm.add_memory_segment();
         //Create ids_data

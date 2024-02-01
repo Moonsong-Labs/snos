@@ -350,9 +350,7 @@ pub fn is_n_ge_two(
 ) -> Result<(), HintError> {
     match get_integer_from_var_name("n", vm, ids_data, ap_tracking) {
         Ok(cow_felt) => {
-            println!("ENTRE AL COW");
             let value = if cow_felt.as_ref() >= &Felt252::TWO {
-                println!("ENTRE BIEN");
                 Felt252::ONE
             } else {
                 Felt252::ZERO
