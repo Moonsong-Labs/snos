@@ -62,16 +62,12 @@ mod test {
         let ap_tracking = ApTracking::default();
         let mut exec_scopes: ExecutionScopes = ExecutionScopes::new();
 
-        vm.set_fp(5);
-        //Insert ids into memory
-        vm.segments = segments![((1, 4), 1)];
-        add_segments!(vm, 1);
+        vm.set_fp(1);
+        vm.add_memory_segment();
+        vm.add_memory_segment();
         //Create ids_data
-        let ids_data = ids_data!["a"];
 
-        let hola = insert_value_from_var_name("n", Felt252::TWO, &mut vm, &ids_data, &ap_tracking);
-        println!("HOLAAAA {:?}", hola);
+        let _ = insert_value_from_var_name("n", Felt252::TWO, &mut vm, &ids_data, &ap_tracking);
         is_n_ge_two(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking,  &Default::default()).expect("is_n_ge_two() failed");
-
     }
 }
