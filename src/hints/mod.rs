@@ -7,9 +7,6 @@ mod tests;
 mod unimplemented;
 mod vars;
 
-#[cfg(test)]
-mod tests;
-
 use std::collections::{HashMap, HashSet};
 
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
@@ -412,24 +409,4 @@ pub fn is_on_curve(
     insert_value_from_var_name(vars::ids::IS_ON_CURVE, is_on_curve, vm, ids_data, ap_tracking)?;
 
     Ok(())
-}
-
-const SET_AP_TO_ACTUAL_FEE: &str = "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.actual_fee)";
-pub fn set_ap_to_actual_fee(
-    vm: &mut VirtualMachine,
-    exec_scopes: &mut ExecutionScopes,
-    ids_data: &HashMap<String, HintReference>,
-    ap_tracking: &ApTracking,
-    constants: &HashMap<String, Felt252>,
-) -> Result<(), HintError> {
-    let execution_helper = exec_scopes .get::<ExecutionHelperWrapper>("execution_helper")?;
-    let actual_fee = execution_helper
-        .execution_helper
-        .borrow()
-        .tx_execution_info
-        .as_ref()
-        .expect("ExecutionHelper should have tx_execution_info")
-        .actual_fee;
-
-    insert_value_into_ap(vm, Felt252::from(actual_fee.0))
 }

@@ -3,7 +3,11 @@ pub(crate) mod tests {
     use std::sync::Arc;
 
     use blockifier::block_context::{BlockContext, FeeTokenAddresses, GasPrices};
+    use blockifier::transaction::errors::TransactionExecutionError;
     use blockifier::transaction::objects::TransactionExecutionInfo;
+    use cairo_vm::serde::deserialize_program::ApTracking;
+    use cairo_vm::types::exec_scope::ExecutionScopes;
+    use num_bigint::BigInt;
     use rstest::{fixture, rstest};
     use starknet_api::block::{BlockNumber, BlockTimestamp};
     use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
