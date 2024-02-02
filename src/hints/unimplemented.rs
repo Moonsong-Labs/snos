@@ -204,7 +204,8 @@ const SPLIT_INPUTS_12: &str = "ids.high12, ids.low12 = divmod(memory[ids.inputs 
 
 const SKIP_TX: &str = "execution_helper.skip_tx()";
 
-const SET_AP_TO_IS_REVERTED: &str = "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.is_reverted)";
+const SET_AP_TO_IS_REVERTED: &str =
+    "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.is_reverted)";
 
 const ENTER_SCOPE_NEXT_NODE_2: &str = indoc! {r#"
 	new_node = left_child if ids.bit == 1 else right_child
@@ -259,7 +260,8 @@ const COMPARE_RETURN_VALUE: &str = indoc! {r#"
 
 const SPLIT_DESCEND: &str = "ids.length, ids.word = descend";
 
-const HEIGHT_IS_ZERO_OR_LEN_NODE_PREIMAGE_IS_TWO: &str = "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0";
+const HEIGHT_IS_ZERO_OR_LEN_NODE_PREIMAGE_IS_TWO: &str =
+    "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0";
 
 const FETCH_STATE_ENTRY_3: &str = indoc! {r#"
 	# Fetch a state_entry in this hint and validate it in the update that comes next.
@@ -420,8 +422,8 @@ const VM_LOAD_PROGRAM: &str = indoc! {r#"
 };
 
 const IS_BLOCK_NUMBER_IN_BLOCK_HASH_BUFFER: &str = indoc! {r#"
-	memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
-	           ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
+    memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
+               ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
 };
 
 const START_TX_2: &str = indoc! {r#"
@@ -430,7 +432,8 @@ const START_TX_2: &str = indoc! {r#"
 	)"#
 };
 
-const GET_SEQUENCER_ADDRESS: &str = "syscall_handler.get_sequencer_address(segments=segments, syscall_ptr=ids.syscall_ptr)";
+const GET_SEQUENCER_ADDRESS: &str =
+    "syscall_handler.get_sequencer_address(segments=segments, syscall_ptr=ids.syscall_ptr)";
 
 const FETCH_STATE_ENTRY_5: &str = indoc! {r#"
 	# Fetch a state_entry in this hint and validate it in the update that comes next.

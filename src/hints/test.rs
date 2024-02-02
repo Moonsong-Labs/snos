@@ -1,13 +1,15 @@
 #[cfg(test)]
 mod test {
-    use cairo_vm::{
-        serde::deserialize_program::ApTracking,
-        types::exec_scope::ExecutionScopes,
-    };
+    use std::result;
+
+    use cairo_vm::serde::deserialize_program::ApTracking;
+    use cairo_vm::types::exec_scope::ExecutionScopes;
+    use cairo_vm::types::relocatable;
+
     use crate::hints::*;
 
     macro_rules! references {
-        ($num: expr) => {{
+        ($num:expr) => {{
             let mut references = cairo_vm::stdlib::collections::HashMap::<usize, HintReference>::new();
             for i in 0..$num {
                 references.insert(i as usize, HintReference::new_simple((i as i32 - $num)));
@@ -25,8 +27,6 @@ mod test {
                 for (i, name) in ids_names.iter().enumerate() {
                     ids_data.insert(cairo_vm::stdlib::string::ToString::to_string(name), references.get(&i).unwrap().clone());
                 }
-                
-                println!("IDS {:?}", ids_data);
                 ids_data
             }
         };
@@ -42,9 +42,36 @@ mod test {
         vm.set_ap(1);
         vm.add_memory_segment();
         vm.add_memory_segment();
-        //Create ids_data
-
+        // Create ids_data
         let _ = insert_value_from_var_name("n", Felt252::TWO, &mut vm, &ids_data, &ap_tracking);
-        is_n_ge_two(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking,  &Default::default()).expect("is_n_ge_two() failed");
+        is_n_ge_two(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
+            .expect("is_n_ge_two() failed");
+
+        let relocatable = vm.get_ap();
+
+        let resutl = vm.get_integer(relocatable).unwrap().into_owned();
+        assert_eq!(resutl, Felt252::ONE);
+    }
+
+    #[test]
+    fn test_not_is_n_ge_two() {
+        let mut vm = VirtualMachine::new(false);
+        let ids_data = ids_data!["n"];
+        let ap_tracking = ApTracking::default();
+        let mut exec_scopes: ExecutionScopes = ExecutionScopes::new();
+
+        vm.set_fp(1);
+        vm.set_ap(1);
+        vm.add_memory_segment();
+        vm.add_memory_segment();
+        // Create ids_data
+        let _ = insert_value_from_var_name("n", Felt252::ZERO, &mut vm, &ids_data, &ap_tracking);
+        is_n_ge_two(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
+            .expect("is_n_ge_two() failed");
+
+        let relocatable = vm.get_ap();
+
+        let resutl = vm.get_integer(relocatable).unwrap().into_owned();
+        assert_eq!(resutl, Felt252::ZERO);
     }
 }
