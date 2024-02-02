@@ -1,12 +1,17 @@
 #[cfg(test)]
-mod tests {
-    use cairo_vm::serde::deserialize_program::ApTracking;
-    use cairo_vm::types::exec_scope::ExecutionScopes;
-    use cairo_vm::vm::vm_core::VirtualMachine;
-    use num_bigint::BigInt;
-    use rstest::rstest;
+pub(crate) mod tests {
+    use std::sync::Arc;
 
-    use crate::hints::{is_on_curve, vars};
+    use blockifier::block_context::{BlockContext, FeeTokenAddresses, GasPrices};
+    use blockifier::transaction::objects::TransactionExecutionInfo;
+    use rstest::{fixture, rstest};
+    use starknet_api::block::{BlockNumber, BlockTimestamp};
+    use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
+    use starknet_api::hash::StarkHash;
+    use starknet_api::transaction::Fee;
+    use starknet_api::{contract_address, patricia_key};
+
+    use crate::hints::*;
 
     macro_rules! references {
         ($num:expr) => {{
@@ -30,6 +35,67 @@ mod tests {
                 ids_data
             }
         };
+    }
+
+    #[fixture]
+    pub fn block_context() -> BlockContext {
+        BlockContext {
+            chain_id: ChainId("SN_GOERLI".to_string()),
+            block_number: BlockNumber(1_000_000),
+            block_timestamp: BlockTimestamp(1_704_067_200),
+            sequencer_address: contract_address!("0x0"),
+            fee_token_addresses: FeeTokenAddresses {
+                eth_fee_token_address: contract_address!("0x1"),
+                strk_fee_token_address: contract_address!("0x2"),
+            },
+            vm_resource_fee_cost: Arc::new(HashMap::new()),
+            gas_prices: GasPrices { eth_l1_gas_price: 1, strk_l1_gas_price: 1 },
+            invoke_tx_max_n_steps: 1,
+            validate_max_n_steps: 1,
+            max_recursion_depth: 50,
+        }
+    }
+
+    #[fixture]
+    fn transaction_execution_info() -> TransactionExecutionInfo {
+        TransactionExecutionInfo {
+            validate_call_info: None,
+            execute_call_info: None,
+            fee_transfer_call_info: None,
+            actual_fee: Fee(1234),
+            actual_resources: Default::default(),
+            revert_error: None,
+        }
+    }
+
+    #[rstest]
+    fn test_set_ap_to_actual_fee_hint(
+        block_context: BlockContext,
+        transaction_execution_info: TransactionExecutionInfo,
+    ) {
+        let mut vm = VirtualMachine::new(false);
+        vm.set_fp(1);
+        vm.add_memory_segment();
+        vm.add_memory_segment();
+
+        let ids_data = Default::default();
+        let ap_tracking = ApTracking::default();
+
+        let mut exec_scopes = ExecutionScopes::new();
+
+        // inject txn execution info with a fee for hint to use
+        let execution_infos = vec![transaction_execution_info];
+        let exec_helper = ExecutionHelperWrapper::new(execution_infos, &block_context);
+        exec_helper.start_tx(None);
+        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, Box::new(exec_helper));
+
+        set_ap_to_actual_fee(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
+            .expect("set_ap_to_actual_fee() failed");
+
+        let ap = vm.get_ap();
+
+        let fee = vm.get_integer(ap).unwrap().into_owned();
+        assert_eq!(fee, 1234.into());
     }
 
     #[test]
@@ -89,22 +155,5 @@ mod tests {
 
         let result = vm.get_integer(relocatable).unwrap().into_owned();
         assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_set_ap_to_actual_fee_hint() {
-        let mut vm = VirtualMachine::new(false);
-        // TODO: allocate memory?
-
-        let ids_data = Default::default();
-        let ap_tracking = ApTracking::default();
-
-        let mut exec_scopes = ExecutionScopes::new();
-
-        // TODO: inject execution_hepler (whose responsibility is this by design?)
-        // TODO: inject transaction data / fee
-
-        set_ap_to_actual_fee(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
-            .expect("set_ap_to_actual_fee() failed");
     }
 }
