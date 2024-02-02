@@ -382,15 +382,16 @@ pub fn is_on_curve(
     Ok(())
 }
 
+#[allow(unused)]
 const SET_AP_TO_ACTUAL_FEE: &str = "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.actual_fee)";
 pub fn set_ap_to_actual_fee(
     vm: &mut VirtualMachine,
     exec_scopes: &mut ExecutionScopes,
-    ids_data: &HashMap<String, HintReference>,
-    ap_tracking: &ApTracking,
-    constants: &HashMap<String, Felt252>,
+    _ids_data: &HashMap<String, HintReference>,
+    _ap_tracking: &ApTracking,
+    _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
-    let execution_helper = exec_scopes .get::<ExecutionHelperWrapper>("execution_helper")?;
+    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>("execution_helper")?;
     let actual_fee = execution_helper
         .execution_helper
         .borrow()
