@@ -410,3 +410,21 @@ pub fn is_on_curve(
 
     Ok(())
 }
+
+#[allow(unused)]
+const START_TX: &str = "execution_helper.start_tx(tx_info_ptr=ids.deprecated_tx_info.address_)";
+
+pub fn start_tx(
+    vm: &mut VirtualMachine,
+    exec_scopes: &mut ExecutionScopes,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
+    _constants: &HashMap<String, Felt252>,
+) -> Result<(), HintError> {
+    let deprecated_tx_info_ptr = get_relocatable_from_var_name("deprecated_tx_info", vm, ids_data, ap_tracking)?;
+
+    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>("execution_helper").unwrap();
+    execution_helper.start_tx(Some(deprecated_tx_info_ptr));
+
+    Ok(())
+}

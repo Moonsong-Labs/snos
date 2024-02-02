@@ -238,9 +238,6 @@ const ENTER_SCOPE_NEXT_NODE_2: &str = indoc! {r#"
 };
 
 #[allow(unused)]
-const START_TX: &str = "execution_helper.start_tx(tx_info_ptr=ids.deprecated_tx_info.address_)";
-
-#[allow(unused)]
 const WRITE_OLD_BLOCK_TO_STORAGE: &str = indoc! {r#"
 	storage = execution_helper.storage_by_address[ids.BLOCK_HASH_CONTRACT_ADDRESS]
 	storage.write(key=ids.old_block_number, value=ids.old_block_hash)"#
