@@ -340,6 +340,7 @@ pub fn breakpoint(
     Ok(())
 }
 
+#[allow(unused)]
 const IS_N_GE_TWO: &str = "memory[ap] = to_felt_or_relocatable(ids.n >= 2)";
 pub fn is_n_ge_two(
     vm: &mut VirtualMachine,
