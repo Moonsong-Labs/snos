@@ -8,7 +8,7 @@ pub(crate) mod tests {
     use cairo_vm::serde::deserialize_program::ApTracking;
     use cairo_vm::types::exec_scope::ExecutionScopes;
     use num_bigint::BigInt;
-    use rstest::{fixture, rstest, rstest};
+    use rstest::{fixture, rstest};
     use starknet_api::block::{BlockNumber, BlockTimestamp};
     use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
     use starknet_api::hash::StarkHash;
