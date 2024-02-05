@@ -8,7 +8,6 @@ mod unimplemented;
 mod vars;
 
 use std::collections::{HashMap, HashSet};
-use std::ops::Add;
 
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor, HintProcessorData,
@@ -39,7 +38,7 @@ type HintImpl = fn(
     &HashMap<String, Felt252>,
 ) -> Result<(), HintError>;
 
-static HINTS: [(&str, HintImpl); 51] = [
+static HINTS: [(&str, HintImpl); 52] = [
     // (BREAKPOINT, breakpoint),
     (STARKNET_OS_INPUT, starknet_os_input),
     (INITIALIZE_STATE_CHANGES, initialize_state_changes),
@@ -53,12 +52,11 @@ static HINTS: [(&str, HintImpl); 51] = [
     (block_context::LOAD_CLASS_FACTS, block_context::load_class_facts),
     (block_context::LOAD_DEPRECATED_CLASS_FACTS, block_context::load_deprecated_class_facts),
     (block_context::LOAD_DEPRECATED_CLASS_INNER, block_context::load_deprecated_class_inner),
-    (block_context::BLOCK_NUMBER, block_context::block_number),
-    (block_context::BLOCK_TIMESTAMP, block_context::block_timestamp),
+    (block_context::DEPRECATED_BLOCK_NUMBER, block_context::block_number),
+    (block_context::DEPRECATED_BLOCK_TIMESTAMP, block_context::block_timestamp),
     (block_context::SEQUENCER_ADDRESS, block_context::sequencer_address),
     (block_context::CHAIN_ID, block_context::chain_id),
     (block_context::FEE_TOKEN_ADDRESS, block_context::fee_token_address),
-    (block_context::DEPRECATED_FEE_TOKEN_ADDRESS, block_context::deprecated_fee_token_address),
     (block_context::GET_BLOCK_MAPPING, block_context::get_block_mapping),
     (execution::ENTER_SYSCALL_SCOPES, execution::enter_syscall_scopes),
     (execution::GET_STATE_ENTRY, execution::get_state_entry),
@@ -70,7 +68,7 @@ static HINTS: [(&str, HintImpl); 51] = [
     (execution::TRANSACTION_VERSION, execution::transaction_version),
     (execution::ASSERT_TRANSACTION_HASH, execution::assert_transaction_hash),
     (execution::ENTER_SCOPE_SYSCALL_HANDLER, execution::enter_scope_syscall_handler),
-    // (execution::START_DEPLOY_TX, execution::start_deploy_tx),
+    (execution::START_DEPLOY_TX, execution::start_deploy_tx),
     (execution::END_TX, execution::end_tx),
     (execution::ENTER_CALL, execution::enter_call),
     (execution::EXIT_CALL, execution::exit_call),
@@ -91,6 +89,7 @@ static HINTS: [(&str, HintImpl); 51] = [
     (syscalls::SEND_MESSAGE_TO_L1, syscalls::send_message_to_l1),
     (syscalls::STORAGE_READ, syscalls::storage_read),
     (syscalls::STORAGE_WRITE, syscalls::storage_write),
+    (SET_AP_TO_ACTUAL_FEE, set_ap_to_actual_fee),
     (IS_ON_CURVE, is_on_curve),
     (IS_N_GE_TWO, is_n_ge_two),
 ];
@@ -310,7 +309,7 @@ pub fn segments_add_temp(
     insert_value_into_ap(vm, temp_segment)
 }
 
-pub const TRANSACTIONS_LEN: &str = "memory[fp + 8] = to_felt_or_relocatable(len(os_input.transactions))";
+pub const TRANSACTIONS_LEN: &str = "memory[ap] = to_felt_or_relocatable(len(os_input.transactions))";
 
 pub fn transactions_len(
     vm: &mut VirtualMachine,
@@ -320,36 +319,36 @@ pub fn transactions_len(
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
     let os_input = exec_scopes.get::<StarknetOsInput>("os_input")?;
-    vm.insert_value(vm.get_fp().add(8)?, os_input.transactions.len()).map_err(HintError::Memory)
+
+    insert_value_into_ap(vm, os_input.transactions.len())
 }
 
 pub const BREAKPOINT: &str = "breakpoint()";
 
 pub fn breakpoint(
     vm: &mut VirtualMachine,
-    _exec_scopes: &mut ExecutionScopes,
+    exec_scopes: &mut ExecutionScopes,
     _ids_data: &HashMap<String, HintReference>,
-    _ap_tracking: &ApTracking,
-    _constants: &HashMap<String, Felt252>,
+    ap_tracking: &ApTracking,
+    constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
     let pc = vm.get_pc();
     let fp = vm.get_fp();
     let ap = vm.get_ap();
-    println!("-----------BEGIN BREAKPOINT-----------");
-    println!("\tpc -> {}, fp -> {}, ap -> {}", pc, fp, ap);
-    // println!("\tnum_constants -> {:?}", constants.len());
+    println!("-----------BEGIN BREAKPOINT(pc-{}, fp-{}, ap-{})-----------\n", pc, fp, ap);
+    println!("\n\tnum_constants -> {:?}", constants.len());
+    print!("\tbuiltins -> ");
+    vm.get_builtin_runners().iter().for_each(|builtin| print!("{}(base {:?}), ", builtin.name(), builtin.base()));
 
-    // print!("\tbuiltins -> ");
-    // vm.get_builtin_runners().iter().for_each(|builtin| print!("{}(base {:?}), ", builtin.name(),
-    // builtin.base()));
+    println!("\n\tpc -> {}", pc);
+    println!("\tfp -> {}", fp);
+    println!("\tap -> {}", ap);
 
-    // let range_check_ptr = get_maybe_relocatable_from_var_name("range_check_ptr", vm, ids_data,
-    // ap_tracking)?; println!("range_check_ptr -> {:?} ", range_check_ptr);
+    println!("\tap_tracking -> {ap_tracking:?}");
+    println!("\texec_scops -> {:?}", exec_scopes.get_local_variables().unwrap().keys());
+    println!("\tids -> {:?}", _ids_data);
 
-    // println!("\tap_tracking -> {ap_tracking:?}");
-    // println!("\texec_scops -> {:?}", exec_scopes.get_local_variables().unwrap().keys());
-    // println!("\tids -> {:?}", ids_data);
-    println!("-----------END BREAKPOINT-----------");
+    println!("\n-----------END BREAKPOINT-----------\n");
     Ok(())
 }
 
@@ -366,6 +365,28 @@ pub fn is_n_ge_two(
     let value = if n >= Felt252::TWO { Felt252::ONE } else { Felt252::ZERO };
     insert_value_into_ap(vm, value)?;
     Ok(())
+}
+
+pub const SET_AP_TO_ACTUAL_FEE: &str =
+    "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.actual_fee)";
+
+pub fn set_ap_to_actual_fee(
+    vm: &mut VirtualMachine,
+    exec_scopes: &mut ExecutionScopes,
+    _ids_data: &HashMap<String, HintReference>,
+    _ap_tracking: &ApTracking,
+    _constants: &HashMap<String, Felt252>,
+) -> Result<(), HintError> {
+    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>(vars::scopes::EXECUTION_HELPER)?;
+    let actual_fee = execution_helper
+        .execution_helper
+        .borrow()
+        .tx_execution_info
+        .as_ref()
+        .ok_or(HintError::CustomHint("ExecutionHelper should have tx_execution_info".to_owned().into_boxed_str()))?
+        .actual_fee;
+
+    insert_value_into_ap(vm, Felt252::from(actual_fee.0))
 }
 
 pub const IS_ON_CURVE: &str = "ids.is_on_curve = (y * y) % SECP_P == y_square_int";
@@ -386,26 +407,4 @@ pub fn is_on_curve(
     insert_value_from_var_name(vars::ids::IS_ON_CURVE, is_on_curve, vm, ids_data, ap_tracking)?;
 
     Ok(())
-}
-
-#[allow(unused)]
-const SET_AP_TO_ACTUAL_FEE: &str = "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.actual_fee)";
-
-pub fn set_ap_to_actual_fee(
-    vm: &mut VirtualMachine,
-    exec_scopes: &mut ExecutionScopes,
-    _ids_data: &HashMap<String, HintReference>,
-    _ap_tracking: &ApTracking,
-    _constants: &HashMap<String, Felt252>,
-) -> Result<(), HintError> {
-    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>("execution_helper")?;
-    let actual_fee = execution_helper
-        .execution_helper
-        .borrow()
-        .tx_execution_info
-        .as_ref()
-        .expect("ExecutionHelper should have tx_execution_info")
-        .actual_fee;
-
-    insert_value_into_ap(vm, Felt252::from(actual_fee.0))
 }
