@@ -2,8 +2,9 @@
 mod tests {
     use cairo_vm::serde::deserialize_program::ApTracking;
     use cairo_vm::types::exec_scope::ExecutionScopes;
-    use crate::hints::*;
     use rstest::rstest;
+
+    use crate::hints::*;
 
     macro_rules! references {
         ($num:expr) => {{
