@@ -31,6 +31,7 @@ mod tests {
     }
     #[rstest]
     #[case(Felt252::TWO, Felt252::ONE)]
+    #[case(Felt252::THREE, Felt252::ONE)]
     #[case(Felt252::ZERO, Felt252::ZERO)]
     fn test_is_n_ge_two(#[case] input: Felt252, #[case] expected: Felt252) {
         let mut vm = VirtualMachine::new(false);
