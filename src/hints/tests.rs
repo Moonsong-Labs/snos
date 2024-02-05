@@ -1,12 +1,9 @@
 #[cfg(test)]
-mod test {
-    use std::result;
-
+mod tests {
     use cairo_vm::serde::deserialize_program::ApTracking;
     use cairo_vm::types::exec_scope::ExecutionScopes;
-    use cairo_vm::types::relocatable;
-
     use crate::hints::*;
+    use rstest::rstest;
 
     macro_rules! references {
         ($num:expr) => {{
@@ -31,8 +28,10 @@ mod test {
             }
         };
     }
-    #[test]
-    fn test_is_n_ge_two() {
+    #[rstest]
+    #[case(Felt252::TWO, Felt252::ONE)]
+    #[case(Felt252::ZERO, Felt252::ZERO)]
+    fn test_is_n_ge_two(#[case] input: Felt252, #[case] expected: Felt252) {
         let mut vm = VirtualMachine::new(false);
         let ids_data = ids_data!["n"];
         let ap_tracking = ApTracking::default();
@@ -43,35 +42,13 @@ mod test {
         vm.add_memory_segment();
         vm.add_memory_segment();
         // Create ids_data
-        let _ = insert_value_from_var_name("n", Felt252::TWO, &mut vm, &ids_data, &ap_tracking);
+        let _ = insert_value_from_var_name("n", input, &mut vm, &ids_data, &ap_tracking);
         is_n_ge_two(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
             .expect("is_n_ge_two() failed");
 
         let relocatable = vm.get_ap();
 
-        let resutl = vm.get_integer(relocatable).unwrap().into_owned();
-        assert_eq!(resutl, Felt252::ONE);
-    }
-
-    #[test]
-    fn test_not_is_n_ge_two() {
-        let mut vm = VirtualMachine::new(false);
-        let ids_data = ids_data!["n"];
-        let ap_tracking = ApTracking::default();
-        let mut exec_scopes: ExecutionScopes = ExecutionScopes::new();
-
-        vm.set_fp(1);
-        vm.set_ap(1);
-        vm.add_memory_segment();
-        vm.add_memory_segment();
-        // Create ids_data
-        let _ = insert_value_from_var_name("n", Felt252::ZERO, &mut vm, &ids_data, &ap_tracking);
-        is_n_ge_two(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
-            .expect("is_n_ge_two() failed");
-
-        let relocatable = vm.get_ap();
-
-        let resutl = vm.get_integer(relocatable).unwrap().into_owned();
-        assert_eq!(resutl, Felt252::ZERO);
+        let result = vm.get_integer(relocatable).unwrap().into_owned();
+        assert_eq!(result, expected);
     }
 }

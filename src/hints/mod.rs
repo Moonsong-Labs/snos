@@ -5,7 +5,7 @@ pub mod syscalls;
 mod unimplemented;
 
 #[cfg(test)]
-mod test;
+mod tests;
 
 use std::collections::{HashMap, HashSet};
 
@@ -349,14 +349,8 @@ pub fn is_n_ge_two(
     ap_tracking: &ApTracking,
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
-    match get_integer_from_var_name("n", vm, ids_data, ap_tracking) {
-        Ok(cow_felt) => {
-            let value = if cow_felt.as_ref() >= &Felt252::TWO { Felt252::ONE } else { Felt252::ZERO };
-            insert_value_into_ap(vm, value)?;
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let n = get_integer_from_var_name("n", vm, ids_data, ap_tracking)?.into_owned();
+    let value = if n >= Felt252::TWO { Felt252::ONE } else { Felt252::ZERO };
+    insert_value_into_ap(vm, value)?;
     Ok(())
 }
