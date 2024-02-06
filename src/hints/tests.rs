@@ -171,7 +171,7 @@ pub(crate) mod tests {
         vm.add_memory_segment();
         vm.add_memory_segment();
 
-        let ids_data = ids_data![vars::ids::IS_ON_CURVE];
+        let ids_data = ids_data![vars::ids::DEPRECATED_TX_INFO];
         let ap_tracking = ApTracking::default();
 
         let mut exec_scopes = ExecutionScopes::new();
@@ -179,10 +179,12 @@ pub(crate) mod tests {
         // we need an execution info in order to start a tx
         let execution_infos = vec![transaction_execution_info];
         let exec_helper = ExecutionHelperWrapper::new(execution_infos, &block_context);
-        exec_helper.start_tx(None);
-        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, Box::new(exec_helper));
+        let exec_helper_box = Box::new(exec_helper);
+        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, exec_helper_box.clone());
 
         start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
             .expect("start_tx");
+
+        assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_some());
     }
 }
