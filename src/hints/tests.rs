@@ -211,10 +211,37 @@ pub(crate) mod tests {
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info_iter.clone().peekable().peek().is_some());
 
-        skip_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("start_tx");
+        skip_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("skip_tx");
 
         // after skipping a tx, tx_execution_info should be some and iter should not have a next()
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info_iter.clone().peekable().peek().is_none());
+    }
+
+    #[rstest]
+    fn test_skip_call(block_context: BlockContext, transaction_execution_info: TransactionExecutionInfo) {
+        let mut vm = VirtualMachine::new(false);
+        vm.set_fp(1);
+        vm.add_memory_segment();
+        vm.add_memory_segment();
+
+        let ids_data = ids_data![vars::ids::DEPRECATED_TX_INFO];
+        let ap_tracking = ApTracking::default();
+
+        let mut exec_scopes = ExecutionScopes::new();
+
+        // specify a call to execute -- default should suffice since we are skipping it
+        let mut transaction_execution_info = transaction_execution_info.clone();
+        transaction_execution_info.execute_call_info = Some(Default::default());
+
+        let execution_infos = vec![transaction_execution_info];
+        let exec_helper = ExecutionHelperWrapper::new(execution_infos, &block_context);
+        let exec_helper_box = Box::new(exec_helper);
+        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, exec_helper_box.clone());
+
+        start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("start_tx");
+        skip_call(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("skip_call");
+
+        // TODO: inspect calls iter (or similar)
     }
 }

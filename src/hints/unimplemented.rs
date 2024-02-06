@@ -175,9 +175,6 @@ const CACHE_CONTRACT_STORAGE_2: &str = indoc! {r#"
 };
 
 #[allow(unused)]
-const SKIP_CALL: &str = "execution_helper.skip_call()";
-
-#[allow(unused)]
 const SET_BIT: &str = "ids.bit = (ids.edge.path >> ids.new_length) & 1";
 
 #[allow(unused)]
