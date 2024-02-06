@@ -240,8 +240,13 @@ pub(crate) mod tests {
         exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, exec_helper_box.clone());
 
         start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("start_tx");
+
+        // we should have a call next
+        assert!(exec_helper_box.execution_helper.borrow().call_iter.clone().peekable().peek().is_some());
+
         skip_call(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("skip_call");
 
-        // TODO: inspect calls iter (or similar)
+        // our only call should have been consumed
+        assert!(exec_helper_box.execution_helper.borrow().call_iter.clone().peekable().peek().is_none());
     }
 }
