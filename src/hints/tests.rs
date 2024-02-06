@@ -207,14 +207,14 @@ pub(crate) mod tests {
         let exec_helper_box = Box::new(exec_helper);
         exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, exec_helper_box.clone());
 
-        // before starting tx, tx_execution_info should be none and iter should have a next()
+        // before skipping a tx, tx_execution_info should be none and iter should have a next()
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info_iter.clone().peekable().peek().is_some());
 
-        start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("start_tx");
+        skip_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("start_tx");
 
-        // after starting tx, tx_execution_info should be some and iter should not have a next()
-        assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_some());
+        // after skipping a tx, tx_execution_info should be some and iter should not have a next()
+        assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info_iter.clone().peekable().peek().is_none());
     }
 }
