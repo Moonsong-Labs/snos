@@ -38,7 +38,7 @@ type HintImpl = fn(
     &HashMap<String, Felt252>,
 ) -> Result<(), HintError>;
 
-static HINTS: [(&str, HintImpl); 53] = [
+static HINTS: [(&str, HintImpl); 54] = [
     // (BREAKPOINT, breakpoint),
     (STARKNET_OS_INPUT, starknet_os_input),
     (INITIALIZE_STATE_CHANGES, initialize_state_changes),
@@ -94,6 +94,7 @@ static HINTS: [(&str, HintImpl); 53] = [
     (IS_ON_CURVE, is_on_curve),
     (IS_N_GE_TWO, is_n_ge_two),
     (START_TX, start_tx),
+    (SKIP_TX, skip_tx),
 ];
 
 /// Hint Extensions extend the current map of hints used by the VM.
@@ -424,8 +425,25 @@ pub fn start_tx(
     let deprecated_tx_info_ptr =
         get_relocatable_from_var_name(vars::ids::DEPRECATED_TX_INFO, vm, ids_data, ap_tracking)?;
 
-    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>("execution_helper").unwrap();
+    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>(vars::ids::EXECUTION_HELPER)
+        .unwrap();
     execution_helper.start_tx(Some(deprecated_tx_info_ptr));
 
     Ok(())
 }
+
+const SKIP_TX: &str = "execution_helper.skip_tx()";
+pub fn skip_tx(
+    vm: &mut VirtualMachine,
+    exec_scopes: &mut ExecutionScopes,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
+    _constants: &HashMap<String, Felt252>,
+) -> Result<(), HintError> {
+    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>(vars::ids::EXECUTION_HELPER)
+        .unwrap();
+    execution_helper.skip_tx();
+    
+    Ok(())
+}
+

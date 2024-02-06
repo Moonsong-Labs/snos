@@ -225,9 +225,6 @@ const SET_TX_INFO_PTR: &str = indoc! {r#"
 const SPLIT_INPUTS_12: &str = "ids.high12, ids.low12 = divmod(memory[ids.inputs + 12], 256 ** 4)";
 
 #[allow(unused)]
-const SKIP_TX: &str = "execution_helper.skip_tx()";
-
-#[allow(unused)]
 const SET_AP_TO_IS_REVERTED: &str =
     "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.is_reverted)";
 
