@@ -182,9 +182,13 @@ pub(crate) mod tests {
         let exec_helper_box = Box::new(exec_helper);
         exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, exec_helper_box.clone());
 
+        // before starting tx, tx_execution_info should be none
+        assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
+
         start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
             .expect("start_tx");
 
+        // after starting tx, tx_execution_info should be some
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_some());
     }
 }
