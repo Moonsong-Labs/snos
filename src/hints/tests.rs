@@ -160,4 +160,29 @@ pub(crate) mod tests {
         let result = vm.get_integer(relocatable).unwrap().into_owned();
         assert_eq!(result, expected);
     }
+
+    #[rstest]
+    fn test_start_tx(
+        block_context: BlockContext,
+        transaction_execution_info: TransactionExecutionInfo,
+    ) {
+        let mut vm = VirtualMachine::new(false);
+        vm.set_fp(1);
+        vm.add_memory_segment();
+        vm.add_memory_segment();
+
+        let ids_data = ids_data![vars::ids::IS_ON_CURVE];
+        let ap_tracking = ApTracking::default();
+
+        let mut exec_scopes = ExecutionScopes::new();
+
+        // we need an execution info in order to start a tx
+        let execution_infos = vec![transaction_execution_info];
+        let exec_helper = ExecutionHelperWrapper::new(execution_infos, &block_context);
+        exec_helper.start_tx(None);
+        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, Box::new(exec_helper));
+
+        start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
+            .expect("start_tx");
+    }
 }

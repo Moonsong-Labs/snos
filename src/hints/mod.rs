@@ -38,7 +38,7 @@ type HintImpl = fn(
     &HashMap<String, Felt252>,
 ) -> Result<(), HintError>;
 
-static HINTS: [(&str, HintImpl); 52] = [
+static HINTS: [(&str, HintImpl); 53] = [
     // (BREAKPOINT, breakpoint),
     (STARKNET_OS_INPUT, starknet_os_input),
     (INITIALIZE_STATE_CHANGES, initialize_state_changes),
@@ -93,6 +93,7 @@ static HINTS: [(&str, HintImpl); 52] = [
     (SET_AP_TO_ACTUAL_FEE, set_ap_to_actual_fee),
     (IS_ON_CURVE, is_on_curve),
     (IS_N_GE_TWO, is_n_ge_two),
+    (START_TX, start_tx),
 ];
 
 /// Hint Extensions extend the current map of hints used by the VM.
