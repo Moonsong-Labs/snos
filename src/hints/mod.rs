@@ -433,10 +433,10 @@ pub fn start_tx(
 
 const SKIP_TX: &str = "execution_helper.skip_tx()";
 pub fn skip_tx(
-    vm: &mut VirtualMachine,
+    _vm: &mut VirtualMachine,
     exec_scopes: &mut ExecutionScopes,
-    ids_data: &HashMap<String, HintReference>,
-    ap_tracking: &ApTracking,
+    _ids_data: &HashMap<String, HintReference>,
+    _ap_tracking: &ApTracking,
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
     let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>(vars::ids::EXECUTION_HELPER).unwrap();
