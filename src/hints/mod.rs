@@ -425,8 +425,7 @@ pub fn start_tx(
     let deprecated_tx_info_ptr =
         get_relocatable_from_var_name(vars::ids::DEPRECATED_TX_INFO, vm, ids_data, ap_tracking)?;
 
-    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>(vars::ids::EXECUTION_HELPER)
-        .unwrap();
+    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>(vars::ids::EXECUTION_HELPER).unwrap();
     execution_helper.start_tx(Some(deprecated_tx_info_ptr));
 
     Ok(())
@@ -440,10 +439,8 @@ pub fn skip_tx(
     ap_tracking: &ApTracking,
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
-    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>(vars::ids::EXECUTION_HELPER)
-        .unwrap();
+    let execution_helper = exec_scopes.get::<ExecutionHelperWrapper>(vars::ids::EXECUTION_HELPER).unwrap();
     execution_helper.skip_tx();
-    
+
     Ok(())
 }
-

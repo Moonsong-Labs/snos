@@ -162,10 +162,7 @@ pub(crate) mod tests {
     }
 
     #[rstest]
-    fn test_start_tx(
-        block_context: BlockContext,
-        transaction_execution_info: TransactionExecutionInfo,
-    ) {
+    fn test_start_tx(block_context: BlockContext, transaction_execution_info: TransactionExecutionInfo) {
         let mut vm = VirtualMachine::new(false);
         vm.set_fp(1);
         vm.add_memory_segment();
@@ -185,18 +182,14 @@ pub(crate) mod tests {
         // before starting tx, tx_execution_info should be none
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
 
-        start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
-            .expect("start_tx");
+        start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("start_tx");
 
         // after starting tx, tx_execution_info should be some
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_some());
     }
 
     #[rstest]
-    fn test_skip_tx(
-        block_context: BlockContext,
-        transaction_execution_info: TransactionExecutionInfo,
-    ) {
+    fn test_skip_tx(block_context: BlockContext, transaction_execution_info: TransactionExecutionInfo) {
         let mut vm = VirtualMachine::new(false);
         vm.set_fp(1);
         vm.add_memory_segment();
@@ -218,12 +211,10 @@ pub(crate) mod tests {
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info_iter.clone().peekable().peek().is_some());
 
-        start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
-            .expect("start_tx");
+        start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("start_tx");
 
         // after starting tx, tx_execution_info should be some and iter should not have a next()
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_some());
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info_iter.clone().peekable().peek().is_none());
     }
 }
-
