@@ -348,26 +348,8 @@ mod tests {
     use starknet_api::{contract_address, patricia_key};
 
     use super::*;
+    use crate::hints::tests::tests::block_context;
     use crate::ExecutionHelperWrapper;
-
-    #[fixture]
-    fn block_context() -> BlockContext {
-        BlockContext {
-            chain_id: ChainId("SN_GOERLI".to_string()),
-            block_number: BlockNumber(1_000_000),
-            block_timestamp: BlockTimestamp(1_704_067_200),
-            sequencer_address: contract_address!("0x0"),
-            fee_token_addresses: FeeTokenAddresses {
-                eth_fee_token_address: contract_address!("0x1"),
-                strk_fee_token_address: contract_address!("0x2"),
-            },
-            vm_resource_fee_cost: Arc::new(HashMap::new()),
-            gas_prices: GasPrices { eth_l1_gas_price: 1, strk_l1_gas_price: 1 },
-            invoke_tx_max_n_steps: 1,
-            validate_max_n_steps: 1,
-            max_recursion_depth: 50,
-        }
-    }
 
     #[fixture]
     fn exec_scopes(block_context: BlockContext) -> ExecutionScopes {
