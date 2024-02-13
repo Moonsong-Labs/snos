@@ -309,17 +309,6 @@ const ENTER_SCOPE_NEW_TREE: &str = indoc! {r#"
 const SPLIT_INPUTS_15: &str = "ids.high15, ids.low15 = divmod(memory[ids.inputs + 15], 256 ** 5)";
 
 #[allow(unused)]
-const SET_PREIMAGE: &str = indoc! {r#"
-	ids.initial_root = os_input.contract_class_commitment_info.previous_root
-	ids.final_root = os_input.contract_class_commitment_info.updated_root
-	preimage = {
-	    int(root): children
-	    for root, children in os_input.contract_class_commitment_info.commitment_facts.items()
-	}
-	assert os_input.contract_class_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
-};
-
-#[allow(unused)]
 const SET_PREIMAGE_COMMITMENT_INFO: &str = indoc! {r#"
 	commitment_info = commitment_info_by_address[ids.state_changes.key]
 	ids.initial_contract_state_root = commitment_info.previous_root
