@@ -116,20 +116,8 @@ pub fn set_preimage_for_current_commitment_info(
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
     let commitment_info = exec_scopes.get::<CommitmentInfo>(vars::scopes::COMMITMENT_INFO)?;
-    insert_value_from_var_name(
-        vars::ids::INITIAL_ROOT,
-        commitment_info.previous_root,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        vars::ids::FINAL_ROOT,
-        commitment_info.updated_root,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    insert_value_from_var_name(vars::ids::INITIAL_ROOT, commitment_info.previous_root, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(vars::ids::FINAL_ROOT, commitment_info.updated_root, vm, ids_data, ap_tracking)?;
 
     let preimage = commitment_info.commitment_facts;
     exec_scopes.insert_value(vars::scopes::PREIMAGE, preimage);
@@ -267,7 +255,8 @@ mod tests {
         let mut exec_scopes: ExecutionScopes = Default::default();
         exec_scopes.insert_value(vars::scopes::COMMITMENT_INFO, os_input.contract_state_commitment_info);
 
-        set_preimage_for_current_commitment_info(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &constants).unwrap();
+        set_preimage_for_current_commitment_info(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &constants)
+            .unwrap();
 
         assert_eq!(
             get_integer_from_var_name(vars::ids::INITIAL_ROOT, &vm, &ids_data, &ap_tracking).unwrap().into_owned(),
