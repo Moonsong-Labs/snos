@@ -1,5 +1,6 @@
 pub mod scopes {
     pub const EXECUTION_HELPER: &str = "execution_helper";
+    pub const COMMITMENT_INFO: &str = "commitment_info";
     pub const OS_INPUT: &str = "os_input";
     pub const PREIMAGE: &str = "preimage";
     pub const SYSCALL_HANDLER: &str = "syscall_handler";
