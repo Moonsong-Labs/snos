@@ -422,17 +422,6 @@ const BUILD_DESCENT_MAP: &str = indoc! {r#"
 };
 
 #[allow(unused)]
-const SET_PREIMAGE_2: &str = indoc! {r#"
-	ids.initial_root = os_input.contract_state_commitment_info.previous_root
-	ids.final_root = os_input.contract_state_commitment_info.updated_root
-	preimage = {
-	    int(root): children
-	    for root, children in os_input.contract_state_commitment_info.commitment_facts.items()
-	}
-	assert os_input.contract_state_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
-};
-
-#[allow(unused)]
 const IS_N_GE_TEN: &str = "memory[ap] = to_felt_or_relocatable(ids.n >= 10)";
 
 #[allow(unused)]
