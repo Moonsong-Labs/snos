@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{get_integer_from_var_name, insert_value_from_var_name};
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name, insert_value_from_var_name,
+};
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::exec_scope::ExecutionScopes;
@@ -9,8 +11,8 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use cairo_vm::Felt252;
 use indoc::indoc;
 
-use crate::io::input::StarknetOsInput;
 use crate::hints::vars;
+use crate::io::input::StarknetOsInput;
 
 pub const SET_PREIMAGE_FOR_STATE_COMMITMENTS: &str = indoc! {r#"
 	ids.initial_root = os_input.contract_state_commitment_info.previous_root
@@ -29,14 +31,25 @@ pub fn set_preimage_for_state_commitments(
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
     let os_input = exec_scopes.get::<StarknetOsInput>(vars::scopes::OS_INPUT)?;
-    insert_value_from_var_name(vars::ids::INITIAL_ROOT, os_input.contract_state_commitment_info.previous_root, vm, ids_data, ap_tracking)?;
-    insert_value_from_var_name(vars::ids::FINAL_ROOT, os_input.contract_state_commitment_info.updated_root, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        vars::ids::INITIAL_ROOT,
+        os_input.contract_state_commitment_info.previous_root,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        vars::ids::FINAL_ROOT,
+        os_input.contract_state_commitment_info.updated_root,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
 
     let preimage = os_input.contract_state_commitment_info.commitment_facts;
     exec_scopes.insert_value(vars::scopes::PREIMAGE, preimage);
 
-    let merkle_height = get_integer_from_var_name(vars::ids::MERKLE_HEIGHT, vm, ids_data, ap_tracking)?
-        .into_owned();
+    let merkle_height = get_integer_from_var_name(vars::ids::MERKLE_HEIGHT, vm, ids_data, ap_tracking)?.into_owned();
     let tree_height: Felt252 = os_input.contract_state_commitment_info.tree_height.into();
     assert_eq!(tree_height, merkle_height);
 
@@ -60,14 +73,25 @@ pub fn set_preimage_for_class_commitments(
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
     let os_input = exec_scopes.get::<StarknetOsInput>(vars::scopes::OS_INPUT)?;
-    insert_value_from_var_name(vars::ids::INITIAL_ROOT, os_input.contract_class_commitment_info.previous_root, vm, ids_data, ap_tracking)?;
-    insert_value_from_var_name(vars::ids::FINAL_ROOT, os_input.contract_class_commitment_info.updated_root, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        vars::ids::INITIAL_ROOT,
+        os_input.contract_class_commitment_info.previous_root,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        vars::ids::FINAL_ROOT,
+        os_input.contract_class_commitment_info.updated_root,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
 
     let preimage = os_input.contract_class_commitment_info.commitment_facts;
     exec_scopes.insert_value(vars::scopes::PREIMAGE, preimage);
 
-    let merkle_height = get_integer_from_var_name(vars::ids::MERKLE_HEIGHT, vm, ids_data, ap_tracking)?
-        .into_owned();
+    let merkle_height = get_integer_from_var_name(vars::ids::MERKLE_HEIGHT, vm, ids_data, ap_tracking)?.into_owned();
     let tree_height: Felt252 = os_input.contract_class_commitment_info.tree_height.into();
     assert_eq!(tree_height, merkle_height);
 
@@ -76,11 +100,10 @@ pub fn set_preimage_for_class_commitments(
 
 #[cfg(test)]
 mod tests {
-    use crate::io::input::CommitmentInfo;
+    use rstest::{fixture, rstest};
 
     use super::*;
-
-    use rstest::{fixture, rstest};
+    use crate::io::input::CommitmentInfo;
 
     #[fixture]
     fn os_input() -> StarknetOsInput {
