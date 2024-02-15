@@ -324,4 +324,37 @@ mod tests {
         // TODO: test preimage more thoroughly
         assert!(exec_scopes.get::<HashMap<Felt252, Vec<Felt252>>>(vars::scopes::PREIMAGE).is_ok());
     }
+
+    #[rstest]
+    fn test_prepare_preimage_validation(os_input: StarknetOsInput) {
+        let mut vm = VirtualMachine::new(false);
+        vm.add_memory_segment();
+        vm.add_memory_segment();
+        vm.add_memory_segment();
+        vm.set_fp(3);
+
+        let ap_tracking = ApTracking::new();
+        let constants = HashMap::new();
+
+        let ids_data = HashMap::from([
+            (vars::ids::EDGE.to_string(), HintReference::new_simple(-3)),
+            (vars::ids::NODE.to_string(), HintReference::new_simple(-2)),
+            (vars::ids::HASH_PTR.to_string(), HintReference::new_simple(-1)),
+        ]);
+        insert_value_from_var_name(vars::ids::NODE, 1_usize, &mut vm, &ids_data, &ap_tracking)
+            .expect("Couldn't insert into ids.NODE");
+
+        let mut exec_scopes: ExecutionScopes = Default::default();
+        // TODO: insert meaningful values into preimage
+        let mut preimage: HashMap<Felt252, Vec<Felt252>> = Default::default();
+        preimage.insert(1_usize.into(), vec![2_usize.into(), 3_usize.into(), 4_usize.into()]);
+        exec_scopes.insert_value(vars::scopes::PREIMAGE, preimage);
+
+        prepare_preimage_validation(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &constants)
+            .unwrap();
+
+        // TODO: test post-conditions:
+        // * edge (edge.length, edge.path, edge.bottom)
+        // * hash_ptr.result
+    }
 }
