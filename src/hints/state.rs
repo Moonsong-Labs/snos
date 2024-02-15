@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name, insert_value_from_var_name,
+    get_integer_from_var_name, get_reference_from_var_name, get_relocatable_from_var_name, insert_value_from_var_name
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -169,11 +169,15 @@ pub fn prepare_preimage_validation(
     vm.insert_value(path_addr, node_values[1])?;
     vm.insert_value(bottom_addr, node_values[2])?;
 
-    // TODO: prevent overflow (original hint doesn't appear to care)?
+    // TODO: prevent underflow (original hint doesn't appear to care)?
     // compute `ids.hash_ptr.result = ids.node - ids.edge.length`
     let res = node - node_values[0];
 
-    // TODO: assign `ids.hash_ptr.result` ... what is hash_ptr, though? A HashBuiltin?
+    // ids.hash_ptr refers to SpongeHashBuiltin (see cairo-lang's sponge_as_hash.cairo)
+    // it is a struct with 6 felts and `result` is the 4th
+    let hash_ptr = get_relocatable_from_var_name(vars::ids::HASH_PTR, &vm, &ids_data, &ap_tracking)?;
+    let hash_ptr_result: Relocatable = (hash_ptr + 3)?;
+    vm.insert_value(hash_ptr_result, res)?;
 
     // TODO: __patricia_skip_validation_runner
 

@@ -9,6 +9,7 @@ pub mod scopes {
 pub mod ids {
     pub const EDGE: &str = "edge";
     pub const FINAL_ROOT: &str = "final_root";
+    pub const HASH_PTR: &str = "hash_ptr";
     pub const INITIAL_ROOT: &str = "initial_root";
     pub const IS_ON_CURVE: &str = "is_on_curve";
     pub const MERKLE_HEIGHT: &str = "MERKLE_HEIGHT";
