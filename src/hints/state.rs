@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name, get_reference_from_var_name, get_relocatable_from_var_name, insert_value_from_var_name
+    get_integer_from_var_name, get_reference_from_var_name, get_relocatable_from_var_name, insert_value_from_var_name,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -151,14 +151,17 @@ pub fn prepare_preimage_validation(
     insert_value_from_var_name(vars::ids::EDGE, new_segment_base, vm, ids_data, ap_tracking)?;
 
     let preimage: HashMap<Felt252, Vec<Felt252>> = exec_scopes.get(vars::scopes::PREIMAGE)?;
-    let node = get_integer_from_var_name(vars::ids::NODE, &vm, &ids_data, &ap_tracking)?
-        .into_owned();
-    let node_values = preimage.get(&node).ok_or(HintError::CustomHint("preimage does not contain expected edge".to_string().into_boxed_str()))?;
+    let node = get_integer_from_var_name(vars::ids::NODE, &vm, &ids_data, &ap_tracking)?.into_owned();
+    let node_values = preimage
+        .get(&node)
+        .ok_or(HintError::CustomHint("preimage does not contain expected edge".to_string().into_boxed_str()))?;
 
     // TODO: review
     // edge is presumed to be a `struct NodeEdge` defined in cairo-lang's particia_utils.cairo file
     if node_values.len() != 3 {
-        return Err(HintError::CustomHint("preimage value does not appear to be a NodeEdge".to_string().into_boxed_str()));
+        return Err(HintError::CustomHint(
+            "preimage value does not appear to be a NodeEdge".to_string().into_boxed_str(),
+        ));
     }
 
     let length_addr = new_segment_base;
@@ -350,8 +353,7 @@ mod tests {
         preimage.insert(1_usize.into(), vec![2_usize.into(), 3_usize.into(), 4_usize.into()]);
         exec_scopes.insert_value(vars::scopes::PREIMAGE, preimage);
 
-        prepare_preimage_validation(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &constants)
-            .unwrap();
+        prepare_preimage_validation(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &constants).unwrap();
 
         // TODO: test post-conditions:
         // * edge (edge.length, edge.path, edge.bottom)
