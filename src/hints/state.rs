@@ -6,6 +6,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::exec_scope::ExecutionScopes;
+use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use cairo_vm::Felt252;
@@ -125,6 +126,56 @@ pub fn set_preimage_for_current_commitment_info(
     let merkle_height = get_integer_from_var_name(vars::ids::MERKLE_HEIGHT, vm, ids_data, ap_tracking)?.into_owned();
     let tree_height: Felt252 = commitment_info.tree_height.into();
     assert_eq!(tree_height, merkle_height);
+
+    Ok(())
+}
+
+pub const PREPARE_PREIMAGE_VALIDATION: &str = indoc! {r#"
+	ids.edge = segments.add()
+	ids.edge.length, ids.edge.path, ids.edge.bottom = preimage[ids.node]
+	ids.hash_ptr.result = ids.node - ids.edge.length
+	if __patricia_skip_validation_runner is not None:
+	    # Skip validation of the preimage dict to speed up the VM. When this flag is set,
+	    # mistakes in the preimage dict will be discovered only in the prover.
+	    __patricia_skip_validation_runner.verified_addresses.add(
+	        ids.hash_ptr + ids.HashBuiltin.result)"#
+};
+pub fn prepare_preimage_validation(
+    vm: &mut VirtualMachine,
+    exec_scopes: &mut ExecutionScopes,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
+    _constants: &HashMap<String, Felt252>,
+) -> Result<(), HintError> {
+    let new_segment_base = vm.add_memory_segment();
+    insert_value_from_var_name(vars::ids::EDGE, new_segment_base, vm, ids_data, ap_tracking)?;
+
+    let preimage: HashMap<Felt252, Vec<Felt252>> = exec_scopes.get(vars::scopes::PREIMAGE)?;
+    let node = get_integer_from_var_name(vars::ids::NODE, &vm, &ids_data, &ap_tracking)?
+        .into_owned();
+    let node_values = preimage.get(&node).ok_or(HintError::CustomHint("preimage does not contain expected edge".to_string().into_boxed_str()))?;
+
+    // TODO: review
+    // edge is presumed to be a `struct NodeEdge` defined in cairo-lang's particia_utils.cairo file
+    if node_values.len() != 3 {
+        return Err(HintError::CustomHint("preimage value does not appear to be a NodeEdge".to_string().into_boxed_str()));
+    }
+
+    let length_addr = new_segment_base;
+    let path_addr: Relocatable = (new_segment_base + 1)?;
+    let bottom_addr: Relocatable = (new_segment_base + 2)?;
+
+    vm.insert_value(length_addr, node_values[0])?;
+    vm.insert_value(path_addr, node_values[1])?;
+    vm.insert_value(bottom_addr, node_values[2])?;
+
+    // TODO: prevent overflow (original hint doesn't appear to care)?
+    // compute `ids.hash_ptr.result = ids.node - ids.edge.length`
+    let res = node - node_values[0];
+
+    // TODO: assign `ids.hash_ptr.result` ... what is hash_ptr, though? A HashBuiltin?
+
+    // TODO: __patricia_skip_validation_runner
 
     Ok(())
 }

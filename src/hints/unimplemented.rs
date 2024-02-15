@@ -150,18 +150,6 @@ const HAS_ENOUGH_GAS: &str = "memory[ap] = to_felt_or_relocatable(ids.initial_ga
 const IS_CASE_RIGHT: &str = "memory[ap] = int(case == 'right') ^ ids.bit";
 
 #[allow(unused)]
-const PREPARE_PREIMAGE_VALIDATION: &str = indoc! {r#"
-	ids.edge = segments.add()
-	ids.edge.length, ids.edge.path, ids.edge.bottom = preimage[ids.node]
-	ids.hash_ptr.result = ids.node - ids.edge.length
-	if __patricia_skip_validation_runner is not None:
-	    # Skip validation of the preimage dict to speed up the VM. When this flag is set,
-	    # mistakes in the preimage dict will be discovered only in the prover.
-	    __patricia_skip_validation_runner.verified_addresses.add(
-	        ids.hash_ptr + ids.HashBuiltin.result)"#
-};
-
-#[allow(unused)]
 const SPLIT_INPUTS_3: &str = "ids.high3, ids.low3 = divmod(memory[ids.inputs + 3], 256)";
 
 #[allow(unused)]

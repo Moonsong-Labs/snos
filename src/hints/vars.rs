@@ -7,10 +7,12 @@ pub mod scopes {
 }
 
 pub mod ids {
+    pub const EDGE: &str = "edge";
     pub const FINAL_ROOT: &str = "final_root";
     pub const INITIAL_ROOT: &str = "initial_root";
     pub const IS_ON_CURVE: &str = "is_on_curve";
     pub const MERKLE_HEIGHT: &str = "MERKLE_HEIGHT";
+    pub const NODE: &str = "node";
     pub const OS_CONTEXT: &str = "os_context";
     pub const SECP_P: &str = "SECP_P";
     pub const SYSCALL_PTR: &str = "syscall_ptr";
