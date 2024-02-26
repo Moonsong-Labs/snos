@@ -56,7 +56,7 @@ pub fn setup_runner() -> (CairoRunner, VirtualMachine) {
         },
         &mut hint_processor,
     )
-        .unwrap()
+    .unwrap()
 }
 
 #[fixture]
