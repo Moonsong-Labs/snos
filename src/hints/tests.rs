@@ -87,7 +87,7 @@ pub(crate) mod tests {
         let execution_infos = vec![transaction_execution_info];
         let exec_helper = ExecutionHelperWrapper::new(execution_infos, &block_context);
         exec_helper.start_tx(None);
-        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, Box::new(exec_helper));
+        exec_scopes.insert_box(vars::scopes::EXECUTION_HELPER, Box::new(exec_helper));
 
         set_ap_to_actual_fee(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default())
             .expect("set_ap_to_actual_fee() failed");
