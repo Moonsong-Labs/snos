@@ -3,7 +3,6 @@ pub(crate) mod tests {
     use std::sync::Arc;
 
     use blockifier::block_context::{BlockContext, FeeTokenAddresses, GasPrices};
-    use blockifier::transaction::errors::TransactionExecutionError;
     use blockifier::transaction::objects::TransactionExecutionInfo;
     use cairo_vm::serde::deserialize_program::ApTracking;
     use cairo_vm::types::exec_scope::ExecutionScopes;
@@ -177,7 +176,7 @@ pub(crate) mod tests {
         let execution_infos = vec![transaction_execution_info];
         let exec_helper = ExecutionHelperWrapper::new(execution_infos, &block_context);
         let exec_helper_box = Box::new(exec_helper);
-        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, exec_helper_box.clone());
+        exec_scopes.insert_box(vars::scopes::EXECUTION_HELPER, exec_helper_box.clone());
 
         // before starting tx, tx_execution_info should be none
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
@@ -205,7 +204,7 @@ pub(crate) mod tests {
         let execution_infos = vec![transaction_execution_info];
         let exec_helper = ExecutionHelperWrapper::new(execution_infos, &block_context);
         let exec_helper_box = Box::new(exec_helper);
-        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, exec_helper_box.clone());
+        exec_scopes.insert_box(vars::scopes::EXECUTION_HELPER, exec_helper_box.clone());
 
         // before skipping a tx, tx_execution_info should be none and iter should have a next()
         assert!(exec_helper_box.execution_helper.borrow().tx_execution_info.is_none());
@@ -237,7 +236,7 @@ pub(crate) mod tests {
         let execution_infos = vec![transaction_execution_info];
         let exec_helper = ExecutionHelperWrapper::new(execution_infos, &block_context);
         let exec_helper_box = Box::new(exec_helper);
-        exec_scopes.insert_box(vars::ids::EXECUTION_HELPER, exec_helper_box.clone());
+        exec_scopes.insert_box(vars::scopes::EXECUTION_HELPER, exec_helper_box.clone());
 
         start_tx(&mut vm, &mut exec_scopes, &ids_data, &ap_tracking, &Default::default()).expect("start_tx");
 
