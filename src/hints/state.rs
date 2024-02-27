@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name, get_reference_from_var_name, get_relocatable_from_var_name, insert_value_from_var_name,
+    get_integer_from_var_name, get_relocatable_from_var_name, insert_value_from_var_name,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -24,6 +24,7 @@ pub const SET_PREIMAGE_FOR_STATE_COMMITMENTS: &str = indoc! {r#"
 	}
 	assert os_input.contract_state_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
 };
+
 pub fn set_preimage_for_state_commitments(
     vm: &mut VirtualMachine,
     exec_scopes: &mut ExecutionScopes,
@@ -66,6 +67,7 @@ pub const SET_PREIMAGE_FOR_CLASS_COMMITMENTS: &str = indoc! {r#"
 	}
 	assert os_input.contract_class_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
 };
+
 pub fn set_preimage_for_class_commitments(
     vm: &mut VirtualMachine,
     exec_scopes: &mut ExecutionScopes,
@@ -109,6 +111,7 @@ pub const SET_PREIMAGE_FOR_CURRENT_COMMITMENT_INFO: &str = indoc! {r#"
 	}
 	assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
 };
+
 pub fn set_preimage_for_current_commitment_info(
     vm: &mut VirtualMachine,
     exec_scopes: &mut ExecutionScopes,
@@ -140,6 +143,7 @@ pub const PREPARE_PREIMAGE_VALIDATION: &str = indoc! {r#"
 	    __patricia_skip_validation_runner.verified_addresses.add(
 	        ids.hash_ptr + ids.HashBuiltin.result)"#
 };
+
 pub fn prepare_preimage_validation(
     vm: &mut VirtualMachine,
     exec_scopes: &mut ExecutionScopes,
@@ -151,7 +155,7 @@ pub fn prepare_preimage_validation(
     insert_value_from_var_name(vars::ids::EDGE, new_segment_base, vm, ids_data, ap_tracking)?;
 
     let preimage: HashMap<Felt252, Vec<Felt252>> = exec_scopes.get(vars::scopes::PREIMAGE)?;
-    let node = get_integer_from_var_name(vars::ids::NODE, &vm, &ids_data, &ap_tracking)?.into_owned();
+    let node = get_integer_from_var_name(vars::ids::NODE, vm, ids_data, ap_tracking)?.into_owned();
     let node_values = preimage
         .get(&node)
         .ok_or(HintError::CustomHint("preimage does not contain expected edge".to_string().into_boxed_str()))?;
@@ -178,7 +182,7 @@ pub fn prepare_preimage_validation(
 
     // ids.hash_ptr refers to SpongeHashBuiltin (see cairo-lang's sponge_as_hash.cairo)
     // it is a struct with 6 felts and `result` is the 4th
-    let hash_ptr = get_relocatable_from_var_name(vars::ids::HASH_PTR, &vm, &ids_data, &ap_tracking)?;
+    let hash_ptr = get_relocatable_from_var_name(vars::ids::HASH_PTR, vm, ids_data, ap_tracking)?;
     let hash_ptr_result: Relocatable = (hash_ptr + 3)?;
     vm.insert_value(hash_ptr_result, res)?;
 
@@ -216,6 +220,7 @@ mod tests {
             general_config: Default::default(),
             transactions: Default::default(),
             block_hash: Default::default(),
+            compiled_class_visited_pcs: Default::default(),
         }
     }
 
@@ -329,7 +334,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_prepare_preimage_validation(os_input: StarknetOsInput) {
+    fn test_prepare_preimage_validation(_os_input: StarknetOsInput) {
         let mut vm = VirtualMachine::new(false);
         vm.add_memory_segment();
         vm.add_memory_segment();
