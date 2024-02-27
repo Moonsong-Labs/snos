@@ -15,6 +15,16 @@ use indoc::indoc;
 use crate::hints::vars;
 use crate::io::input::{CommitmentInfo, StarknetOsInput};
 
+fn assert_tree_height_eq_merkle_height(tree_height: Felt252, merkle_height: Felt252) -> Result<(), HintError> {
+    if tree_height != merkle_height {
+        return Err(HintError::AssertionFailed(
+            "Tree height does not match Merkle height".to_string().into_boxed_str(),
+        ));
+    }
+
+    Ok(())
+}
+
 pub const SET_PREIMAGE_FOR_STATE_COMMITMENTS: &str = indoc! {r#"
 	ids.initial_root = os_input.contract_state_commitment_info.previous_root
 	ids.final_root = os_input.contract_state_commitment_info.updated_root
@@ -53,7 +63,7 @@ pub fn set_preimage_for_state_commitments(
 
     let merkle_height = get_integer_from_var_name(vars::ids::MERKLE_HEIGHT, vm, ids_data, ap_tracking)?.into_owned();
     let tree_height: Felt252 = os_input.contract_state_commitment_info.tree_height.into();
-    assert_eq!(tree_height, merkle_height);
+    assert_tree_height_eq_merkle_height(tree_height, merkle_height)?;
 
     Ok(())
 }
@@ -96,7 +106,7 @@ pub fn set_preimage_for_class_commitments(
 
     let merkle_height = get_integer_from_var_name(vars::ids::MERKLE_HEIGHT, vm, ids_data, ap_tracking)?.into_owned();
     let tree_height: Felt252 = os_input.contract_class_commitment_info.tree_height.into();
-    assert_eq!(tree_height, merkle_height);
+    assert_tree_height_eq_merkle_height(tree_height, merkle_height)?;
 
     Ok(())
 }
@@ -128,7 +138,7 @@ pub fn set_preimage_for_current_commitment_info(
 
     let merkle_height = get_integer_from_var_name(vars::ids::MERKLE_HEIGHT, vm, ids_data, ap_tracking)?.into_owned();
     let tree_height: Felt252 = commitment_info.tree_height.into();
-    assert_eq!(tree_height, merkle_height);
+    assert_tree_height_eq_merkle_height(tree_height, merkle_height)?;
 
     Ok(())
 }
@@ -160,8 +170,6 @@ pub fn prepare_preimage_validation(
         .get(&node)
         .ok_or(HintError::CustomHint("preimage does not contain expected edge".to_string().into_boxed_str()))?;
 
-    // TODO: review
-    // edge is presumed to be a `struct NodeEdge` defined in cairo-lang's particia_utils.cairo file
     if node_values.len() != 3 {
         return Err(HintError::CustomHint(
             "preimage value does not appear to be a NodeEdge".to_string().into_boxed_str(),
@@ -265,7 +273,6 @@ mod tests {
         let mut vm = VirtualMachine::new(false);
         vm.add_memory_segment();
         vm.add_memory_segment();
-        vm.add_memory_segment();
         vm.set_fp(3);
 
         let ap_tracking = ApTracking::new();
@@ -299,7 +306,6 @@ mod tests {
     #[rstest]
     fn test_set_preimage_for_current_commitment_info(os_input: StarknetOsInput) {
         let mut vm = VirtualMachine::new(false);
-        vm.add_memory_segment();
         vm.add_memory_segment();
         vm.add_memory_segment();
         vm.set_fp(3);
@@ -336,7 +342,6 @@ mod tests {
     #[rstest]
     fn test_prepare_preimage_validation(_os_input: StarknetOsInput) {
         let mut vm = VirtualMachine::new(false);
-        vm.add_memory_segment();
         vm.add_memory_segment();
         vm.add_memory_segment();
         vm.set_fp(3);
