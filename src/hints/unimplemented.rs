@@ -7,7 +7,7 @@ pub fn unimplemented(
     _ap_tracking: &cairo_vm::serde::deserialize_program::ApTracking,
     _constants: &std::collections::HashMap<String, cairo_vm::Felt252>,
 ) -> Result<(), cairo_vm::vm::errors::hint_errors::HintError> {
-	Ok(())
+    Ok(())
 }
 
 #[allow(unused)]
