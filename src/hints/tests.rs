@@ -279,19 +279,14 @@ pub(crate) mod tests {
             &mut exec_scopes,
             &ids_data,
             &ap_tracking,
-            &Default::default()
-        ).expect("get_old_block_number_and_hash");
-
-        let ids_old_block_hash = get_integer_from_var_name(
-            vars::ids::OLD_BLOCK_HASH,
-            &vm,
-            &ids_data,
-            &ap_tracking
+            &Default::default(),
         )
-        .expect("fn didn't insert old_block_hash")
-        .into_owned();
+        .expect("get_old_block_number_and_hash");
+
+        let ids_old_block_hash = get_integer_from_var_name(vars::ids::OLD_BLOCK_HASH, &vm, &ids_data, &ap_tracking)
+            .expect("fn didn't insert old_block_hash")
+            .into_owned();
 
         assert_eq!(ids_old_block_hash, 42.into());
-
     }
 }

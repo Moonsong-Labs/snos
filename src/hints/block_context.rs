@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use blockifier::block_context::BlockContext;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_manager::Dictionary;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap
+    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessor, HintReference};
 use cairo_vm::serde::deserialize_program::{ApTracking, HintParams, ReferenceManager};
@@ -315,12 +315,8 @@ pub fn get_old_block_number_and_hash(
         .ok_or(HintError::CustomHint("ExecutionHelper should have prev_block_context".to_owned().into_boxed_str()))?
         .block_number;
 
-    let ids_old_block_number = get_integer_from_var_name(
-        vars::ids::OLD_BLOCK_NUMBER,
-        vm,
-        ids_data,
-        ap_tracking
-    )?.into_owned();
+    let ids_old_block_number =
+        get_integer_from_var_name(vars::ids::OLD_BLOCK_NUMBER, vm, ids_data, ap_tracking)?.into_owned();
 
     assert_eq!(
         Felt252::from(old_block_number.0),
@@ -334,4 +330,3 @@ pub fn get_old_block_number_and_hash(
 
     Ok(())
 }
-
