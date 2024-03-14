@@ -4,7 +4,7 @@ use blockifier::{block_context::BlockContext};
 use blockifier::state::cached_state::CachedState;
 use blockifier::test_utils::CairoVersion;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::contracts::FeatureContract::{AccountWithLongValidate, AccountWithoutValidations, Empty, ERC20, FaultyAccount, LegacyTestContract, SecurityTests, TestContract};
+use blockifier::test_utils::contracts::FeatureContract::{AccountWithLongValidate, AccountWithoutValidations, Empty, ERC20, FaultyAccount, SecurityTests, TestContract};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier::transaction::objects::FeeType;
@@ -47,7 +47,7 @@ pub fn deprecated_class(class_hash: ClassHash) -> DeprecatedContractClass {
 
 
 fn compute_deprecated_class_hash(contract: &FeatureContract) -> StarkHash {
-    match contract {
+    let hardcoded_hash = match contract {
         // FeatureContract::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_BASE,
         FeatureContract::AccountWithoutValidations(_) => {
             let fe = FieldElement::from_dec_str("3043522133089536593636086481152606703984151542874851197328605892177919922063").unwrap();
@@ -67,9 +67,26 @@ fn compute_deprecated_class_hash(contract: &FeatureContract) -> StarkHash {
         },
 
         _ => contract.get_class_hash().0,
-    }
+    };
 
+    // convert our FeatureContract into a deprecated_hash_utils::ContractClass
+    let computed_hash = match contract.get_class() {
+        blockifier::execution::contract_class::ContractClass::V0(class) => {
+            let contract_class = crate::common::deprecated_hash_utils::ContractClass {
+                program: class.program,
+                hinted_class_hash: Default::default(),
+                entry_points_by_type: class.entry_points_by_type,
+                abi: None,
+            };
+            contract_class
+        },
+        _ => panic!("only deprecated class supported"),
+    };
 
+    println!("hardcoded hash: {:?}", hardcoded_hash);
+    println!("computed hash:  {:?}", computed_hash);
+
+    hardcoded_hash
 }
 
 

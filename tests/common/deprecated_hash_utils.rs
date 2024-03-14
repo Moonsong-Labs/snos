@@ -1,15 +1,10 @@
 use cairo_vm::Felt252;
-use cairo_vm::types::{errors::program_errors::ProgramError, program::Program};
+use cairo_vm::types::program::Program;
 
 use getset::{CopyGetters, Getters};
-use serde::Serialize;
-use starknet_api::deprecated_contract_class::{ContractClassAbiEntry, EntryPoint};
+use starknet_api::deprecated_contract_class::{ContractClassAbiEntry, EntryPoint, EntryPointType};
 use starknet_crypto::{pedersen_hash, FieldElement};
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashMap},
-    io,
-};
+use std::collections::HashMap;
 use thiserror::Error;
 
 pub type AbiType = Vec<ContractClassAbiEntry>;
@@ -39,21 +34,6 @@ impl From<HashError> for ContractAddressError {
     }
 }
 
-#[derive(Clone, CopyGetters, Debug, Default, Eq, Getters, Hash, PartialEq)]
-pub struct ContractEntryPoint {
-    #[getset(get = "pub")]
-    selector: Felt252,
-    #[getset(get_copy = "pub")]
-    offset: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum EntryPointType {
-    External,
-    L1Handler,
-    Constructor,
-}
-
 #[derive(Clone, Debug, Eq, Getters, PartialEq)]
 pub struct ContractClass {
     #[getset(get = "pub")]
@@ -61,7 +41,7 @@ pub struct ContractClass {
     #[getset(get = "pub")]
     pub(crate) hinted_class_hash: Felt252,
     #[getset(get = "pub")]
-    pub(crate) entry_points_by_type: HashMap<EntryPointType, Vec<ContractEntryPoint>>,
+    pub(crate) entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
     #[getset(get = "pub")]
     pub(crate) abi: Option<AbiType>,
 }
@@ -127,12 +107,16 @@ pub fn compute_hash_on_elements(vec: &[Felt252]) -> Result<Felt252, HashError> {
 #[allow(unused)]
 pub const MASK_3: u8 = 0x03;
 
+fn stark_felt_to_felt252(sf: starknet_api::hash::StarkFelt) -> Felt252 {
+    Felt252::from_bytes_be_slice(sf.bytes()) // TODO
+}
+
 /// Returns the contract entry points.
 #[allow(unused)]
 fn get_contract_entry_points(
     contract_class: &ContractClass,
     entry_point_type: &EntryPointType,
-) -> Result<Vec<ContractEntryPoint>, ContractAddressError> {
+) -> Result<Vec<EntryPoint>, ContractAddressError> {
     let entry_points = contract_class
         .entry_points_by_type()
         .get(entry_point_type)
@@ -141,8 +125,8 @@ fn get_contract_entry_points(
     let program_len = contract_class.program().iter_data().count();
 
     for entry_point in entry_points {
-        if entry_point.offset() > program_len {
-            return Err(ContractAddressError::InvalidOffset(entry_point.offset()));
+        if entry_point.offset.0 > program_len {
+            return Err(ContractAddressError::InvalidOffset(entry_point.offset.0));
         }
     }
     Ok(entry_points.to_owned())
@@ -159,8 +143,8 @@ fn get_contract_entry_points_hashed(
             .iter()
             .flat_map(|contract_entry_point| {
                 vec![
-                    *contract_entry_point.selector(),
-                    Felt252::from(contract_entry_point.offset()),
+                    stark_felt_to_felt252(contract_entry_point.selector.0),
+                    Felt252::from(contract_entry_point.offset.0),
                 ]
             })
             .collect::<Vec<Felt252>>(),

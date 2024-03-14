@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::ops::Add;
 
 use cairo_vm::Felt252;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
