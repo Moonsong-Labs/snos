@@ -11,8 +11,8 @@ async-stream = "0.3.5"
 base64 = "0.21.3"
 bitvec = { version = "1.0.1", features = ["serde"] }
 blockifier = { git = "https://github.com/keep-starknet-strange/blockifier", branch = "snos/callinfo-clone", features = ["clone", "testing"] }
-cairo-lang-starknet = { version = "2.5.4" }
-cairo-lang-casm = { version = "2.5.4" }
+cairo-lang-starknet = { version = "=2.5.4" }
+cairo-lang-casm = { version = "=2.5.4" }
 cairo-type-derive = { version = "0.1.0", path = "cairo-type-derive" }
 cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm", features = ["extensive_hints", "cairo-1-hints"] }
 futures = "0.3.30"
@@ -34,7 +34,7 @@ serde_json = { version = "1.0.105", features = ["arbitrary_precision"] }
 serde_with = "3.3.0"
 serde_yaml = "0.9.25"
 starknet-crypto = "0.6.0"
-starknet_api = { version = "0.7.0-dev.0", features = ["testing"] }
+starknet_api = { version = "=0.7.0-dev.0", features = ["testing"] }
 thiserror = "1.0.48"
 tokio = "1.32.0"
 tokio-stream = "0.1.14"
