@@ -4,17 +4,6 @@ pub const ASSIGN_BYTECODE_SEGMENTS: &str = indoc! {r#"
     bytecode_segments = iter(bytecode_segment_structure.segments)"#
 };
 
-pub const COMPUTE_SLOPE: &str = indoc! {r#"
-    from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_ALPHA, SECP256R1_P
-    from starkware.cairo.common.cairo_secp.secp_utils import pack
-    from starkware.python.math_utils import ec_double_slope
-
-    # Compute the slope.
-    x = pack(ids.point.x, SECP256R1_P)
-    y = pack(ids.point.y, SECP256R1_P)
-    value = slope = ec_double_slope(point=(x, y), alpha=SECP256R1_ALPHA, p=SECP256R1_P)"#
-};
-
 pub const ASSIGN_STATE_ENTRY_WITH_NEW_SEGMENT: &str = indoc! {r#"
     # Fetch a state_entry in this hint and validate it in the update that comes next.
     ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
@@ -272,19 +261,6 @@ pub const CREATE_COMMON_ARGS: &str = indoc! {r#"
         preimage=preimage, descent_map=descent_map,
         __patricia_skip_validation_runner=__patricia_skip_validation_runner)
     common_args['common_args'] = common_args"#
-};
-
-pub const COMPUTE_SLOPE_2: &str = indoc! {r#"
-    from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_P
-    from starkware.cairo.common.cairo_secp.secp_utils import pack
-    from starkware.python.math_utils import line_slope
-
-    # Compute the slope.
-    x0 = pack(ids.point0.x, PRIME)
-    y0 = pack(ids.point0.y, PRIME)
-    x1 = pack(ids.point1.x, PRIME)
-    y1 = pack(ids.point1.y, PRIME)
-    value = slope = line_slope(point1=(x0, y0), point2=(x1, y1), p=SECP256R1_P)"#
 };
 
 pub const COMPUTE_IDS_LOW: &str = indoc! {r#"

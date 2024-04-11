@@ -47,7 +47,7 @@ pub type HintImpl = fn(
 ) -> Result<(), HintError>;
 
 #[rustfmt::skip]
-static HINTS: [(&str, HintImpl); 190] = [
+static HINTS: [(&str, HintImpl); 188] = [
     (INITIALIZE_CLASS_HASHES, initialize_class_hashes),
     (INITIALIZE_STATE_CHANGES, initialize_state_changes),
     (IS_ON_CURVE, is_on_curve),
@@ -203,7 +203,6 @@ static HINTS: [(&str, HintImpl); 190] = [
     (syscalls::SET_SYSCALL_PTR, syscalls::set_syscall_ptr),
     (BREAKPOINT, breakpoint),
     (unimplemented::ASSIGN_BYTECODE_SEGMENTS, hint_stub),
-    (unimplemented::COMPUTE_SLOPE, hint_stub),
     (unimplemented::ASSIGN_STATE_ENTRY_WITH_NEW_SEGMENT, hint_stub),
     (unimplemented::SET_STATE_ENTRY_TO_ACCOUNT_CONTRACT_ADDRESS, hint_stub),
     (unimplemented::CALCULATE_VALUE, hint_stub),
@@ -236,7 +235,6 @@ static HINTS: [(&str, HintImpl); 190] = [
     (unimplemented::CALCULATE_VALUE_2, hint_stub),
     (unimplemented::COMPUTE_Q_MOD_PRIME, hint_stub),
     (unimplemented::CREATE_COMMON_ARGS, hint_stub),
-    (unimplemented::COMPUTE_SLOPE_2, hint_stub),
     (unimplemented::COMPUTE_IDS_LOW, hint_stub),
 ];
 

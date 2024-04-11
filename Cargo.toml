@@ -12,7 +12,7 @@ base64 = "0.21.3"
 bitvec = { version = "1.0.1", features = ["serde"] }
 blockifier = { git = "https://github.com/keep-starknet-strange/blockifier", branch = "snos/callinfo-clone", features = ["clone", "testing"] }
 cairo-type-derive = { version = "0.1.0", path = "cairo-type-derive" }
-cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm", features = ["extensive_hints", "cairo-1-hints"] }
+cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm", features = ["extensive_hints", "cairo-1-hints"], rev = "d5a6c15e8715668dbe7d1e7d9040103720a75b8f" }
 futures = "0.3.30"
 futures-util = "0.3.30"
 getset = "0.1.2"
