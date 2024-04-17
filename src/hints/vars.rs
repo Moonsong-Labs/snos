@@ -52,7 +52,7 @@ pub mod ids {
     pub const INITIAL_CONTRACT_STATE_ROOT: &str = "initial_contract_state_root";
     pub const INITIAL_ROOT: &str = "initial_root";
     pub const IS_ON_CURVE: &str = "is_on_curve";
-    pub const USE_KZG_DA: &str = "use_kzg_da";
+    pub const KZG_COMMITMENT: &str = "kzg_commitment";
     pub const LENGTH: &str = "length";
     pub const MAX_FEE: &str = "max_fee";
     pub const N: &str = "n";
@@ -82,7 +82,7 @@ pub mod ids {
     pub const STATE_UPDATES_START: &str = "state_updates_start";
     pub const SYSCALL_PTR: &str = "syscall_ptr";
     pub const TX_VERSION: &str = "tx_version";
-
+    pub const USE_KZG_DA: &str = "use_kzg_da";
     pub const VALUE: &str = "value";
     pub const WORD: &str = "word";
     pub const Y: &str = "y";

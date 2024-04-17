@@ -28,6 +28,7 @@ use crate::io::input::StarknetOsInput;
 
 pub mod block_context;
 pub mod builtins;
+mod commitment;
 mod compiled_class;
 pub mod execution;
 mod output;

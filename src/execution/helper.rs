@@ -58,6 +58,9 @@ pub struct ExecutionHelper {
     pub storage_by_address: StorageByAddress,
     // Temporary state, until storage_by_address is functional
     pub state: CachedState<DictStateReader>,
+    // Stores the state diff computed by the OS, in case that KZG commitment is used (since
+    // it won't be part of the OS output).
+    da_segment: Option<Vec<Felt252>>,
 }
 
 /// ExecutionHelper is wrapped in Rc<RefCell<_>> in order
@@ -94,6 +97,7 @@ impl ExecutionHelperWrapper {
                 execute_code_read_iter: vec![].into_iter(),
                 storage_by_address: StorageByAddress::default(),
                 state,
+                da_segment: None,
             })),
         }
     }
@@ -240,6 +244,19 @@ impl ExecutionHelperWrapper {
         }
 
         Ok(commitments)
+    }
+
+    /// Stores the data-availabilty segment, to be used for computing the KZG commitment
+    /// and published on L1 using a blob transaction.
+    pub fn store_da_segment(&mut self, da_segment: Vec<Felt252>) -> Result<(), HintError> {
+        let execution_helper = &mut self.execution_helper.as_ref().borrow_mut();
+        if execution_helper.da_segment.is_none() {
+            return Err(HintError::AssertionFailed("DA segment is already initialized".to_string().into_boxed_str()));
+        }
+
+        execution_helper.da_segment = Some(da_segment);
+
+        Ok(())
     }
 }
 
