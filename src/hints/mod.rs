@@ -53,7 +53,7 @@ pub type HintImpl = fn(
 ) -> Result<(), HintError>;
 
 #[rustfmt::skip]
-static HINTS: [(&str, HintImpl); 168] = [
+static HINTS: [(&str, HintImpl); 170] = [
     (BREAKPOINT, breakpoint),
     (INITIALIZE_CLASS_HASHES, initialize_class_hashes),
     (INITIALIZE_STATE_CHANGES, initialize_state_changes),
@@ -130,6 +130,7 @@ static HINTS: [(&str, HintImpl); 168] = [
     (execution::RESOURCE_BOUNDS, execution::resource_bounds),
     (execution::SET_AP_TO_TX_NONCE, execution::set_ap_to_tx_nonce),
     (execution::SET_FP_PLUS_4_TO_TX_NONCE, execution::set_fp_plus_4_to_tx_nonce),
+    (execution::SET_STATE_ENTRY_TO_ACCOUNT_CONTRACT_ADDRESS, execution::set_state_entry_to_account_contract_address),
     (execution::START_TX, execution::start_tx),
     (execution::TRANSACTION_VERSION, execution::transaction_version),
     (execution::TX_ACCOUNT_DEPLOYMENT_DATA, execution::tx_account_deployment_data),
@@ -152,6 +153,7 @@ static HINTS: [(&str, HintImpl); 168] = [
     (output::SET_STATE_UPDATES_START, output::set_state_updates_start),
     (output::SET_TREE_STRUCTURE, output::set_tree_structure),
     (patricia::ASSERT_CASE_IS_RIGHT, patricia::assert_case_is_right),
+    (patricia::BUILD_DESCENT_MAP, patricia::build_descent_map),
     (patricia::HEIGHT_IS_ZERO_OR_LEN_NODE_PREIMAGE_IS_TWO, patricia::height_is_zero_or_len_node_preimage_is_two),
     (patricia::IS_CASE_RIGHT, patricia::is_case_right),
     (patricia::PREPARE_PREIMAGE_VALIDATION_NON_DETERMINISTIC_HASHES, patricia::prepare_preimage_validation_non_deterministic_hashes),

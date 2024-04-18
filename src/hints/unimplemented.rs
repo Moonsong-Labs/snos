@@ -13,14 +13,6 @@ pub const COMPUTE_SLOPE: &str = indoc! {r#"
 };
 
 #[allow(unused)]
-pub const SET_STATE_ENTRY_TO_ACCOUNT_CONTRACT_ADDRESS: &str = indoc! {r#"
-    # Fetch a state_entry in this hint and validate it in the update that comes next.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-        ids.tx_info.account_contract_address
-    ]"#
-};
-
-#[allow(unused)]
 pub const CALCULATE_VALUE: &str = indoc! {r#"
     from starkware.cairo.common.cairo_secp.secp_utils import SECP256R1, pack
     from starkware.python.math_utils import y_squared_from_x
@@ -195,35 +187,6 @@ pub const COMPUTE_Q_MOD_PRIME: &str = indoc! {r#"
     q, r = divmod(pack(ids.val, PRIME), SECP256R1_P)
     assert r == 0, f"verify_zero: Invalid input {ids.val.d0, ids.val.d1, ids.val.d2}."
     ids.q = q % PRIME"#
-};
-
-#[allow(unused)]
-pub const CREATE_COMMON_ARGS: &str = indoc! {r#"
-    from starkware.cairo.common.patricia_utils import canonic, patricia_guess_descents
-    from starkware.python.merkle_tree import build_update_tree
-
-    # Build modifications list.
-    modifications = []
-    DictAccess_key = ids.DictAccess.key
-    DictAccess_new_value = ids.DictAccess.new_value
-    DictAccess_SIZE = ids.DictAccess.SIZE
-    for i in range(ids.n_updates):
-        curr_update_ptr = ids.update_ptr.address_ + i * DictAccess_SIZE
-        modifications.append((
-            memory[curr_update_ptr + DictAccess_key],
-            memory[curr_update_ptr + DictAccess_new_value]))
-
-    node = build_update_tree(ids.height, modifications)
-    descent_map = patricia_guess_descents(
-        ids.height, node, preimage, ids.prev_root, ids.new_root)
-    del modifications
-    __patricia_skip_validation_runner = globals().get(
-        '__patricia_skip_validation_runner')
-
-    common_args = dict(
-        preimage=preimage, descent_map=descent_map,
-        __patricia_skip_validation_runner=__patricia_skip_validation_runner)
-    common_args['common_args'] = common_args"#
 };
 
 #[allow(unused)]
