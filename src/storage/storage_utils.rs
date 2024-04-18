@@ -141,11 +141,11 @@ pub fn build_starknet_storage(blockifier_state: &mut CachedState<DictStateReader
         println!("Creating initial state for contract {}", contract_address);
         let initial_contract_storage = initial_contract_storage_map.get(contract_address).unwrap_or(&empty_state);
         let final_contract_storage =
-            final_contract_storage_map.get(&contract_address).expect("any contract should appear in final storage");
+            final_contract_storage_map.get(contract_address).expect("any contract should appear in final storage");
 
         execute_coroutine_threadsafe(async {
             let initial_tree =
-                build_patricia_tree_from_contract_storage(&mut ffc, &initial_contract_storage).await.unwrap();
+                build_patricia_tree_from_contract_storage(&mut ffc, initial_contract_storage).await.unwrap();
             let updated_tree =
                 build_patricia_tree_from_contract_storage(&mut ffc, final_contract_storage).await.unwrap();
 
