@@ -129,7 +129,8 @@ pub fn build_starknet_storage(blockifier_state: &mut CachedState<DictStateReader
     let initial_contract_storage_map = get_contract_storage_map(&blockifier_state.state.storage_view);
     let final_contract_storage_map = build_final_storage_map(blockifier_state);
 
-    let all_contracts = initial_contract_storage_map.keys().chain(final_contract_storage_map.keys()).collect::<HashSet<&Felt252>>();
+    let all_contracts =
+        initial_contract_storage_map.keys().chain(final_contract_storage_map.keys()).collect::<HashSet<&Felt252>>();
 
     let mut storage_by_address = ContractStorageMap::new();
 
@@ -139,8 +140,8 @@ pub fn build_starknet_storage(blockifier_state: &mut CachedState<DictStateReader
     for contract_address in all_contracts {
         println!("Creating initial state for contract {}", contract_address);
         let initial_contract_storage = initial_contract_storage_map.get(contract_address).unwrap_or(&empty_state);
-        let final_contract_storage = final_contract_storage_map.get(&contract_address)
-            .expect("any contract should appear in final storage");
+        let final_contract_storage =
+            final_contract_storage_map.get(&contract_address).expect("any contract should appear in final storage");
 
         execute_coroutine_threadsafe(async {
             let initial_tree =
