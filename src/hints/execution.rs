@@ -1498,8 +1498,8 @@ pub fn write_syscall_result(
     );
 
     // ids.prev_value = storage.read(key=ids.request.key)
-    let read_result = execution_helper.read_storage_for_address(contract_address, storage_write_address);
-    let prev_value = read_result.unwrap_or_default();
+    let prev_value =
+        execution_helper.read_storage_for_address(contract_address, storage_write_address).unwrap_or_default();
     insert_value_from_var_name(vars::ids::PREV_VALUE, prev_value, vm, ids_data, ap_tracking)?;
 
     // storage.write(key=ids.request.key, value=ids.request.value)
