@@ -11,7 +11,7 @@ use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use cairo_vm::Felt252;
+use cairo_vm::{any_box, Felt252};
 use indoc::indoc;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
@@ -22,7 +22,7 @@ use crate::cairo_types::trie::NodeEdge;
 use crate::hints::types::{skip_verification_if_configured, Preimage};
 use crate::hints::vars;
 use crate::starknet::starknet_storage::StorageLeaf;
-use crate::starkware_utils::commitment_tree::base_types::{DescentMap, DescentStart, Height, NodePath};
+use crate::starkware_utils::commitment_tree::base_types::{DescentMap, DescentPath, DescentStart, Height, NodePath};
 use crate::starkware_utils::commitment_tree::patricia_tree::patricia_guess_descents::patricia_guess_descents;
 use crate::starkware_utils::commitment_tree::update_tree::{
     build_update_tree, decode_node, DecodeNodeCase, DecodedNode, TreeUpdate,
@@ -172,10 +172,10 @@ pub fn split_descend(
     ap_tracking: &ApTracking,
     _constants: &HashMap<String, Felt252>,
 ) -> Result<(), HintError> {
-    let descend: Vec<Felt252> = exec_scopes.get(vars::scopes::DESCEND)?;
+    let descend: DescentPath = exec_scopes.get(vars::scopes::DESCEND)?;
 
-    let length = descend[0];
-    let word = descend[1];
+    let length = Felt252::from(descend.0.0);
+    let word = Felt252::from(descend.1.0);
 
     insert_value_from_var_name(vars::ids::LENGTH, length, vm, ids_data, ap_tracking)?;
     insert_value_from_var_name(vars::ids::WORD, word, vm, ids_data, ap_tracking)?;
@@ -310,16 +310,18 @@ pub fn build_descent_map(
     // Build modifications list.
     let n_updates = get_integer_from_var_name(vars::ids::N_UPDATES, vm, ids_data, ap_tracking)?;
     let n_updates = felt_to_usize(&n_updates)?;
-    let update_ptr_address = get_relocatable_from_var_name(vars::ids::UPDATE_PTR, vm, ids_data, ap_tracking)?;
+    let update_ptr_address = get_ptr_from_var_name(vars::ids::UPDATE_PTR, vm, ids_data, ap_tracking)?;
 
     let modifications = {
         let mut modifications = vec![];
         for i in 0..n_updates {
             let curr_update_ptr = (update_ptr_address + i * DictAccess::cairo_size())?;
-            let tree_index = vm.get_integer((curr_update_ptr + DictAccess::key_offset())?)?;
-            let new_value = vm.get_integer((curr_update_ptr + DictAccess::new_value_offset())?)?;
+            let tree_index = vm.get_integer((curr_update_ptr + DictAccess::key_offset())?)?.into_owned();
+            let new_value = vm.get_integer((curr_update_ptr + DictAccess::new_value_offset())?)?.into_owned();
+            
+            println!("Pushing modification {}: {}", tree_index, new_value);
 
-            modifications.push((tree_index.into_owned().to_biguint(), StorageLeaf::new(new_value.into_owned())));
+            modifications.push((tree_index.to_biguint(), StorageLeaf::new(new_value)));
         }
         modifications
     };
@@ -332,7 +334,8 @@ pub fn build_descent_map(
     let preimage: &Preimage = exec_scopes.get_ref(vars::scopes::PREIMAGE)?;
 
     let node = build_update_tree(height, modifications);
-    let descent_map = patricia_guess_descents::<StorageLeaf>(height, node, preimage, prev_root, new_root)?;
+    let descent_map = patricia_guess_descents::<StorageLeaf>(height, node.clone(), preimage, prev_root, new_root)?; // TODO: clone bad
+    exec_scopes.insert_box(vars::scopes::NODE, any_box!(node));
 
     // Notes:
     // 1. We do not build `common_args` as it seems to be a Python trick to enter new scopes with a dict

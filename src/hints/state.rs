@@ -213,12 +213,12 @@ pub fn load_edge(
     let res = node - edge.length;
 
     // ids.hash_ptr refers to SpongeHashBuiltin (see cairo-lang's sponge_as_hash.cairo)
-    let hash_ptr = get_relocatable_from_var_name(vars::ids::HASH_PTR, vm, ids_data, ap_tracking)?;
+    let hash_ptr = get_ptr_from_var_name(vars::ids::HASH_PTR, vm, ids_data, ap_tracking)?;
     let hash_result_ptr: Relocatable = (hash_ptr + SpongeHashBuiltin::result_offset())?;
     vm.insert_value(hash_result_ptr, res)?;
 
     let hash_result_address = (hash_ptr + HashBuiltin::result_offset())?;
-    skip_verification_if_configured(exec_scopes, hash_result_address)?;
+    // skip_verification_if_configured(exec_scopes, hash_result_address)?;
 
     Ok(())
 }

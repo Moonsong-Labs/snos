@@ -1267,14 +1267,15 @@ pub fn enter_node_scope(node: UpdateTree<StorageLeaf>, exec_scopes: &mut Executi
     let new_scope = {
         let preimage: Preimage = exec_scopes.get(vars::scopes::PREIMAGE)?;
         let descent_map: DescentMap = exec_scopes.get(vars::scopes::DESCENT_MAP)?;
-        let patricia_skip_validation_runner: Option<PatriciaSkipValidationRunner> =
-            exec_scopes.get(vars::scopes::PATRICIA_SKIP_VALIDATION_RUNNER)?;
+        //let patricia_skip_validation_runner: Option<PatriciaSkipValidationRunner> =
+            //exec_scopes.get(vars::scopes::PATRICIA_SKIP_VALIDATION_RUNNER)?;
 
         HashMap::from([
             (vars::scopes::NODE.to_string(), any_box!(node)),
             (vars::scopes::PREIMAGE.to_string(), any_box!(preimage)),
             (vars::scopes::DESCENT_MAP.to_string(), any_box!(descent_map)),
-            (vars::scopes::PATRICIA_SKIP_VALIDATION_RUNNER.to_string(), any_box!(patricia_skip_validation_runner)),
+            // TODO: insert only if present?
+            // (vars::scopes::PATRICIA_SKIP_VALIDATION_RUNNER.to_string(), any_box!(patricia_skip_validation_runner)),
         ])
     };
     exec_scopes.enter_scope(new_scope);
