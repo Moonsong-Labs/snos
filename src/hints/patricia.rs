@@ -355,6 +355,24 @@ pub fn build_descent_map(
     Ok(())
 }
 
+pub const DEBUG_HINT_DO_NOT_MERGE: &str = "print(value)";
+
+pub fn debug_hint(
+    vm: &mut VirtualMachine,
+    _exec_scopes: &mut ExecutionScopes,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
+    _constants: &HashMap<String, Felt252>,
+) -> Result<(), HintError> {
+    let value = get_integer_from_var_name(vars::ids::VALUE, vm, ids_data, ap_tracking)?;
+    let node = get_integer_from_var_name(vars::ids::NODE, vm, ids_data, ap_tracking)?;
+
+    println!("node: {}", node.to_biguint());
+    println!("value: {}", value.to_biguint());
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
