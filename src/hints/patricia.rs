@@ -25,7 +25,7 @@ use crate::starknet::starknet_storage::StorageLeaf;
 use crate::starkware_utils::commitment_tree::base_types::{DescentMap, DescentPath, DescentStart, Height, NodePath};
 use crate::starkware_utils::commitment_tree::patricia_tree::patricia_guess_descents::patricia_guess_descents;
 use crate::starkware_utils::commitment_tree::update_tree::{
-    build_update_tree, decode_node, DecodeNodeCase, DecodedNode, TreeUpdate,
+    build_update_tree, decode_node, DecodeNodeCase, DecodedNode, TreeUpdate, UpdateTree,
 };
 
 pub const SET_SIBLINGS: &str = "memory[ids.siblings], ids.word = descend";
@@ -329,7 +329,7 @@ pub fn build_descent_map(
 
     let preimage: &Preimage = exec_scopes.get_ref(vars::scopes::PREIMAGE)?;
 
-    let node = build_update_tree(height, modifications);
+    let node: UpdateTree<StorageLeaf> = build_update_tree(height, modifications);
     let descent_map = patricia_guess_descents::<StorageLeaf>(height, node.clone(), preimage, prev_root, new_root)?;
 
     exec_scopes.insert_value(vars::scopes::NODE, node.clone());
