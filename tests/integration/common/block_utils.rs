@@ -14,7 +14,8 @@ use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
 use cairo_lang_starknet::casm_contract_class::CasmContractClass;
 use cairo_vm::Felt252;
-use snos::config::{StarknetGeneralConfig, StarknetOsConfig, STORED_BLOCK_HASH_BUFFER};
+use num_bigint::BigUint;
+use snos::config::{StarknetGeneralConfig, StarknetOsConfig, BLOCK_HASH_CONTRACT_ADDRESS, STORED_BLOCK_HASH_BUFFER};
 use snos::execution::helper::ExecutionHelperWrapper;
 use snos::io::input::{StarknetOsInput, StorageCommitment};
 use snos::io::InternalTransaction;
@@ -25,7 +26,9 @@ use snos::starkware_utils::commitment_tree::patricia_tree::patricia_tree::Patric
 use snos::storage::storage_utils::build_starknet_storage;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::hash::StarkHash;
+use starknet_api::hash::{StarkFelt, StarkHash};
+use starknet_api::stark_felt;
+use starknet_api::state::StorageKey;
 use starknet_crypto::FieldElement;
 
 use crate::common::transaction_utils::to_felt252;
@@ -75,7 +78,7 @@ fn override_class_hash(contract: &FeatureContract) -> StarkHash {
         // FeatureContract::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_BASE,
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0) => {
             let fe = FieldElement::from_dec_str(
-                "646245114977324210659279014519951538684823368221946044944492064370769527799",
+                "3043522133089536593636086481152606703984151542874851197328605892177919922063",
             )
             .unwrap();
             StarkHash::from(fe)
@@ -83,7 +86,7 @@ fn override_class_hash(contract: &FeatureContract) -> StarkHash {
         // FeatureContract::Empty(_) => EMPTY_CONTRACT_BASE,
         FeatureContract::ERC20 => {
             let fe = FieldElement::from_dec_str(
-                "561405978155448065164184136501758613494542063826668571171916978663245519697",
+                "2553874082637258309275750418379019378586603706497644242041372159420778949015",
             )
             .unwrap();
             StarkHash::from(fe)
@@ -93,7 +96,7 @@ fn override_class_hash(contract: &FeatureContract) -> StarkHash {
         // FeatureContract::SecurityTests => SECURITY_TEST_CONTRACT_BASE,
         FeatureContract::TestContract(CairoVersion::Cairo0) => {
             let fe = FieldElement::from_dec_str(
-                "2988696213549450938938462798157547750390790722284970546348726091875993395870",
+                "2847229557799212240700619257444410593768590640938595411219122975663286400357",
             )
             .unwrap();
             StarkHash::from(fe)
@@ -151,6 +154,15 @@ pub fn test_state(
             }
         }
     }
+
+    let upper_bound_block_number = block_context.block_number.0 - STORED_BLOCK_HASH_BUFFER;
+    let block_number = StorageKey::from(upper_bound_block_number);
+    let block_hash = stark_felt!(66_u64);
+
+    let block_hash_contract_address = ContractAddress::try_from(stark_felt!(BLOCK_HASH_CONTRACT_ADDRESS)).unwrap();
+
+    state.set_storage_at(block_hash_contract_address, block_number, block_hash).unwrap();
+
     state
 }
 

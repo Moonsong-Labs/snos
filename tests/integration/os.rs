@@ -1,7 +1,7 @@
 use blockifier::block_context::BlockContext;
 use blockifier::invoke_tx_args;
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_calldata, CairoVersion, NonceManager};
+use blockifier::state::state_api::State;
+use blockifier::test_utils::{create_calldata, NonceManager};
 use blockifier::transaction::test_utils;
 use blockifier::transaction::test_utils::max_fee;
 use rstest::rstest;
@@ -132,6 +132,7 @@ async fn syscalls_cairo1(block_context: BlockContext, initial_state: InitialStat
     });
 
     // test_send_message_to_l1
+
     let to_address = stark_felt!(1234_u16);
     let payload = vec![stark_felt!(2019_u16), stark_felt!(2020_u16), stark_felt!(2021_u16)];
     let entrypoint_args = &[vec![to_address, stark_felt!(payload.len() as u64)], payload].concat();
