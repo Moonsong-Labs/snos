@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use blockifier::block_context::BlockContext;
 use blockifier::execution::contract_class::ContractClass::{V0, V1};
@@ -222,7 +222,7 @@ pub async fn os_hints(
 
     println!("contracts to class_hash");
     for (a, c) in &contracts {
-        println!("\t{} -> {}", a, c.contract_hash);
+        println!("\t{} -> {}", a, BigUint::from_bytes_be(&c.contract_hash));
     }
 
     println!("deprecated classes");
