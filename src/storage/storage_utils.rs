@@ -7,6 +7,7 @@ use cairo_vm::Felt252;
 use starknet_api::hash::StarkFelt;
 
 use crate::execution::helper::ContractStorageMap;
+use crate::starknet::business_logic::fact_state::state::SharedState;
 use crate::starknet::starknet_storage::{execute_coroutine_threadsafe, OsSingleStarknetStorage, StorageLeaf};
 use crate::starkware_utils::commitment_tree::base_types::Height;
 use crate::starkware_utils::commitment_tree::binary_fact_tree::BinaryFactTree;
@@ -120,12 +121,13 @@ where
     tree.update(ffc, modifications, &mut facts).await
 }
 
+/*
 /// Translates the (final) Blockifier state into an OS-compatible structure.
 ///
 /// This function uses the fact that `CachedState` is a wrapper around a read-only `DictStateReader`
 /// object. The initial state is obtained through this read-only view while the final storage
 /// is obtained by extracting the state diff from the `CachedState` part.
-pub fn build_starknet_storage(blockifier_state: &mut CachedState<DictStateReader>) -> ContractStorageMap {
+pub fn build_starknet_storage<S: Storage + Send + Sync, H: HashFunctionType + Send + Sync>(blockifier_state: &mut CachedState<SharedState<S, H>>) -> ContractStorageMap {
     let initial_contract_storage_map = get_contract_storage_map(&blockifier_state.state.storage_view);
     let final_contract_storage_map = build_final_storage_map(blockifier_state);
 
@@ -157,3 +159,4 @@ pub fn build_starknet_storage(blockifier_state: &mut CachedState<DictStateReader
 
     storage_by_address
 }
+*/
