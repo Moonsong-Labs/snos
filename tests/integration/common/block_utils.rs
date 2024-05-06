@@ -14,6 +14,7 @@ use cairo_vm::Felt252;
 use num_bigint::BigUint;
 use snos::config::{StarknetGeneralConfig, StarknetOsConfig, BLOCK_HASH_CONTRACT_ADDRESS, STORED_BLOCK_HASH_BUFFER};
 use snos::crypto::pedersen::PedersenHash;
+use snos::crypto::poseidon::PoseidonHash;
 use snos::execution::helper::ExecutionHelperWrapper;
 use snos::io::input::StarknetOsInput;
 use snos::io::InternalTransaction;
@@ -23,7 +24,7 @@ use snos::starknet::starknet_storage::execute_coroutine_threadsafe;
 use snos::starkware_utils::commitment_tree::base_types::Height;
 use snos::starkware_utils::commitment_tree::patricia_tree::patricia_tree::PatriciaTree;
 use snos::storage::dict_storage::DictStorage;
-use snos::storage::storage::FactFetchingContext;
+use snos::storage::storage::{FactFetchingContext, HashFunctionType};
 use snos::storage::storage_utils::build_starknet_storage;
 use snos::utils::{felt_api2vm, felt_vm2api};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, PatriciaKey};
@@ -115,7 +116,7 @@ pub fn test_state(
 ) -> CachedState<SharedState<DictStorage, PedersenHash>> {
     let mut class_hash_to_class = HashMap::new();
     let mut address_to_class_hash = HashMap::new();
-    let class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash> = HashMap::new();
+    let mut class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash> = HashMap::new();
 
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20;
@@ -127,12 +128,16 @@ pub fn test_state(
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
         let class_hash = ClassHash(override_class_hash(contract));
-        // assert!(!class_hash_to_class.contains_key(&class_hash));
-        class_hash_to_class.insert(class_hash, contract.get_class());
+        let contract_class = contract.get_class();
+        class_hash_to_class.insert(class_hash, contract_class);
+
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
             address_to_class_hash.insert(instance_address, class_hash);
         }
+
+        let compiled_class_hash =
+            contract_class.class_hash_to_compiled_class_hash.insert(class_hash, compiled_class_hash);
     }
 
     // Steps to create the initial state:

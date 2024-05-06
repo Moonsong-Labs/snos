@@ -430,13 +430,8 @@ where
     fn get_compiled_contract_class(&mut self, class_hash: ClassHash) -> StateResult<ContractClass> {
         let contract_bytes = execute_coroutine_threadsafe(async {
             let compiled_class_hash = self.get_compiled_class_hash_async(class_hash).await?;
-            let bytecode = self
-                .ffc_for_class_hash
-                .acquire_storage()
-                .await
-                .get_value(compiled_class_hash.0.bytes())
-                .await
-                .map_err(|_| {
+            let bytecode =
+                self.ffc.acquire_storage().await.get_value(compiled_class_hash.0.bytes()).await.map_err(|_| {
                     StateError::StateReadError(format!("Error reading storage value for {:?}", class_hash.clone()))
                 })?;
             StateResult::Ok(bytecode)
