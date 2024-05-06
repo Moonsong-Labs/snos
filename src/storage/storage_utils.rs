@@ -68,8 +68,15 @@ where
     }
 }
 
-/// An intermediate contract -> [(key, value), ...] map representation.
-type StorageMap = HashMap<Felt252, Vec<(Felt252, Felt252)>>;
+async fn unpack_blockifier_state_async<S: Storage + Send + Sync, H: HashFunctionType + Send + Sync>(
+    mut blockifier_state: CachedState<SharedState<S, H>>,
+) -> Result<(SharedState<S, H>, SharedState<S, H>), TreeError> {
+    let final_state = {
+        let state = blockifier_state.state.clone();
+        let block_info = state.block_info.clone();
+        // TODO: block_info seems useless in SharedState, get rid of it
+        state.apply_commitment_state_diff(blockifier_state.to_state_diff(), block_info).await?
+    };
 
 /// CachedState's `state.state.storage_view` is a mapping of (contract, storage_key) -> value
 /// but we need a mapping of (contract) -> [(storage_key, value)] so we can build the tree
@@ -127,12 +134,13 @@ where
 /// This function uses the fact that `CachedState` is a wrapper around a read-only `DictStateReader`
 /// object. The initial state is obtained through this read-only view while the final storage
 /// is obtained by extracting the state diff from the `CachedState` part.
-pub async fn build_starknet_storage(blockifier_state: &mut CachedState<DictStateReader>) -> ContractStorageMap {
-    let initial_contract_storage_map = get_contract_storage_map(&blockifier_state.state.storage_view);
-    let final_contract_storage_map = build_final_storage_map(blockifier_state);
+pub async fn build_starknet_storage_async<S: Storage + Send + Sync, H: HashFunctionType + Send + Sync>(
+    blockifier_state: CachedState<SharedState<S, H>>,
+) -> Result<ContractStorageMap<S, H>, TreeError> {
+    let mut storage_by_address = ContractStorageMap::new();
 
-    let all_contracts =
-        initial_contract_storage_map.keys().chain(final_contract_storage_map.keys()).collect::<HashSet<&Felt252>>();
+    // TODO: would be cleaner if `get_leaf()` took &ffc instead of &mut ffc
+    let (mut initial_state, mut final_state) = unpack_blockifier_state_async(blockifier_state).await?;
 
     let mut storage_by_address = ContractStorageMap::new();
 
@@ -140,18 +148,25 @@ pub async fn build_starknet_storage(blockifier_state: &mut CachedState<DictState
 
     let mut ffc = FactFetchingContext::new(DictStorage::default());
     for contract_address in all_contracts {
-        println!("Creating initial state for contract {}", contract_address);
-        let initial_contract_storage = initial_contract_storage_map.get(contract_address).unwrap_or(&empty_state);
-        let final_contract_storage =
-            final_contract_storage_map.get(contract_address).expect("any contract should appear in final storage");
+        let initial_contract_state: ContractState = initial_state
+            .contract_states
+            .get_leaf(&mut initial_state.ffc, contract_address.clone())
+            .await?
+            .expect("There should be an initial state");
+        let final_contract_state: ContractState = final_state
+            .contract_states
+            .get_leaf(&mut final_state.ffc, contract_address.clone())
+            .await?
+            .expect("There should be a final state");
 
-        let initial_tree = build_patricia_tree_from_contract_storage(&mut ffc, initial_contract_storage).await.unwrap();
-        let updated_tree = build_patricia_tree_from_contract_storage(&mut ffc, final_contract_storage).await.unwrap();
+        let initial_tree = initial_contract_state.storage_commitment_tree;
+        let updated_tree = final_contract_state.storage_commitment_tree;
 
         let contract_storage =
-            OsSingleStarknetStorage::new(initial_tree, updated_tree, &[], ffc.clone()).await.unwrap();
-        storage_by_address.insert(*contract_address, contract_storage);
+            OsSingleStarknetStorage::new(initial_tree, updated_tree, &[], final_state.ffc.clone()).await.unwrap();
+        storage_by_address.insert(Felt252::from(contract_address), contract_storage);
     }
 
-    storage_by_address
+    Ok(storage_by_address)
 }
+*/
