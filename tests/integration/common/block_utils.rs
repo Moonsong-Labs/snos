@@ -3,12 +3,10 @@ use std::collections::HashMap;
 use blockifier::block_context::BlockContext;
 use blockifier::execution::contract_class::ContractClass::{V0, V1};
 use blockifier::state::cached_state::CachedState;
-use blockifier::state::state_api::{State as _, StateReader};
+use blockifier::state::state_api::{State, StateReader};
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::contracts::FeatureContract::{
-    AccountWithLongValidate, AccountWithoutValidations, Empty, FaultyAccount, SecurityTests, TestContract, ERC20,
-};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
 use cairo_lang_starknet::casm_contract_class::CasmContractClass;
@@ -22,9 +20,12 @@ use snos::io::InternalTransaction;
 use snos::starknet::business_logic::fact_state::contract_state_objects::ContractState;
 use snos::starknet::business_logic::fact_state::state::SharedState;
 use snos::starknet::starknet_storage::execute_coroutine_threadsafe;
+use snos::starkware_utils::commitment_tree::patricia_tree::patricia_tree::PatriciaTree;
 use snos::storage::dict_storage::DictStorage;
 use snos::storage::storage::FactFetchingContext;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
+use snos::storage::storage_utils::build_starknet_storage;
+use snos::utils::{felt_api2vm, felt_vm2api};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, PatriciaKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::stark_felt;
@@ -35,14 +36,14 @@ use crate::common::transaction_utils::to_felt252;
 
 pub fn deprecated_compiled_class(class_hash: ClassHash) -> DeprecatedContractClass {
     let variants = vec![
-        AccountWithLongValidate(CairoVersion::Cairo0),
-        AccountWithoutValidations(CairoVersion::Cairo0),
-        ERC20,
-        Empty(CairoVersion::Cairo0),
-        FaultyAccount(CairoVersion::Cairo0),
+        FeatureContract::AccountWithLongValidate(CairoVersion::Cairo0),
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
+        FeatureContract::ERC20,
+        FeatureContract::Empty(CairoVersion::Cairo0),
+        FeatureContract::FaultyAccount(CairoVersion::Cairo0),
         // LegacyTestContract,
-        SecurityTests,
-        TestContract(CairoVersion::Cairo0),
+        FeatureContract::SecurityTests,
+        FeatureContract::TestContract(CairoVersion::Cairo0),
     ];
 
     for c in variants {
@@ -57,11 +58,11 @@ pub fn deprecated_compiled_class(class_hash: ClassHash) -> DeprecatedContractCla
 
 pub fn compiled_class(class_hash: ClassHash) -> CasmContractClass {
     let variants = vec![
-        AccountWithLongValidate(CairoVersion::Cairo1),
-        AccountWithoutValidations(CairoVersion::Cairo1),
-        Empty(CairoVersion::Cairo1),
-        FaultyAccount(CairoVersion::Cairo1),
-        TestContract(CairoVersion::Cairo1),
+        FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1),
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
+        FeatureContract::Empty(CairoVersion::Cairo1),
+        FeatureContract::FaultyAccount(CairoVersion::Cairo1),
+        FeatureContract::TestContract(CairoVersion::Cairo1),
     ];
 
     for c in variants {
@@ -106,26 +107,6 @@ fn override_class_hash(contract: &FeatureContract) -> StarkHash {
     }
 }
 
-/// Utility to fund an account.
-fn fund_account(
-    block_context: &BlockContext,
-    account_address: ContractAddress,
-    initial_balance: u128,
-    state: &mut CachedState<SharedState<DictStorage, PedersenHash>>,
-) {
-    /*
-    let storage_view = &mut state.state.storage_view;
-    let balance_key = get_fee_token_var_address(account_address);
-    for fee_type in FeeType::iter() {
-        storage_view.insert(
-            (block_context.fee_token_address(&fee_type), balance_key),
-            stark_felt!(initial_balance),
-        );
-    }
-    */
-    panic!("fixme!");
-}
-
 pub fn test_state(
     block_context: &BlockContext,
     initial_balances: u128,
@@ -166,26 +147,7 @@ pub fn test_state(
         class_hash_to_class,
         class_hash_to_compiled_class_hash,
         ..Default::default()
-    };
-    // let mut state = CachedState::from(dict_state_reader);
-
-    // TODO:
-    let block_info = Default::default();
-
-    let mut ffc = FactFetchingContext::<_, PedersenHash>::new(Default::default());
-    let default_general_config = StarknetGeneralConfig::default(); // TODO
-    let mut shared_state = execute_coroutine_threadsafe(async {
-        let mut shared_state = SharedState::from_blockifier_state(
-            ffc,
-            dict_state_reader,
-            block_info,
-            &default_general_config,
-        ).await.expect("failed to apply initial state as updates to SharedState");
-
-        shared_state
     });
-
-    let mut cached_state = CachedState::from(shared_state);
 
     // fund the accounts.
     for (contract, n_instances) in contract_instances.iter() {
@@ -195,21 +157,40 @@ pub fn test_state(
                 FeatureContract::AccountWithLongValidate(_)
                 | FeatureContract::AccountWithoutValidations(_)
                 | FeatureContract::FaultyAccount(_) => {
-                    fund_account(block_context, instance_address, initial_balances, &mut cached_state);
+                    fund_account(block_context, instance_address, initial_balances, &mut initial_blockifier_state);
                 }
                 _ => (),
             }
         }
     }
 
+    // Insert block-related storage data
     let upper_bound_block_number = block_context.block_number.0 - STORED_BLOCK_HASH_BUFFER;
     let block_number = StorageKey::from(upper_bound_block_number);
     let block_hash = stark_felt!(66_u64);
 
     let block_hash_contract_address = ContractAddress::try_from(stark_felt!(BLOCK_HASH_CONTRACT_ADDRESS)).unwrap();
 
-    // TODO: update state here
-    // state.set_storage_at(block_hash_contract_address, block_number, block_hash).unwrap();
+    initial_blockifier_state.set_storage_at(block_hash_contract_address, block_number, block_hash).unwrap();
+
+    // TODO:
+    let block_info = Default::default();
+    let ffc = FactFetchingContext::<_, PedersenHash>::new(Default::default());
+    let default_general_config = StarknetGeneralConfig::default(); // TODO
+    let shared_state = execute_coroutine_threadsafe(async {
+        let shared_state = SharedState::from_blockifier_state(
+            ffc,
+            initial_blockifier_state.state,
+            block_info,
+            &default_general_config,
+        )
+        .await
+        .expect("failed to apply initial state as updates to SharedState");
+
+        shared_state
+    });
+
+    let cached_state = CachedState::from(shared_state);
 
     cached_state
 }
@@ -220,33 +201,20 @@ pub fn os_hints(
     transactions: Vec<InternalTransaction>,
     tx_execution_infos: Vec<TransactionExecutionInfo>,
 ) -> (StarknetOsInput, ExecutionHelperWrapper) {
-    let deployed_addresses = blockifier_state.to_state_diff().address_to_class_hash;
-    let initial_addresses = blockifier_state.state.address_to_class_hash.keys().cloned().collect::<HashSet<_>>();
-    let addresses = deployed_addresses.keys().cloned().chain(initial_addresses);
+    let shared_state = &blockifier_state.state;
+    let mut contracts: HashMap<Felt252, ContractState> = shared_state
+        .contract_addresses()
+        .iter()
+        .map(|address_biguint| {
+            // TODO: biguint is exacerbating the type conversion problem, ideas...?
+            let address: ContractAddress =
+                ContractAddress(PatriciaKey::try_from(felt_vm2api(Felt252::from(address_biguint))).unwrap());
+            let contract_state =
+                execute_coroutine_threadsafe(async { shared_state.get_contract_state(address) }).unwrap();
 
-    // TODO:
-    let mut contracts: HashMap<Felt252, ContractState> = Default::default();
-    /*
-    let mut contracts: HashMap<Felt252, ContractState> = blockifier_state
-        .state
-        .address_to_class_hash
-        .keys()
-        .map(|address| {
-            // os expects the contract hash to be 0 for just deployed contracts
-            let contract_hash = if deployed_addresses.contains_key(&address) {
-                Felt252::ZERO
-            } else {
-                to_felt252(&blockifier_state.get_class_hash_at(address).unwrap().0)
-            };
-            let contract_state = ContractState {
-                contract_hash: blockifier_state.state.address_to_class_hash.get(address).unwrap().0.bytes().to_vec(),
-                storage_commitment_tree: todo!(), // TODO
-                nonce: 0.into(),                  // TODO
-            };
             (to_felt252(address.0.key()), contract_state)
         })
         .collect();
-    */
 
     let mut deprecated_compiled_classes: HashMap<Felt252, DeprecatedContractClass> = Default::default();
     let mut compiled_classes: HashMap<Felt252, CasmContractClass> = Default::default();
@@ -293,15 +261,6 @@ pub fn os_hints(
         println!("\t{}", c);
     }
 
-    // for h in deprecated_compiled_classes.keys() {
-    //     class_hash_to_compiled_class_hash.insert(h.clone(), h.clone());
-    // }
-
-    // for (h, c) in compiled_classes.iter() {
-    //     class_hash_to_compiled_class_hash
-    //         .insert(h.clone(), Felt252::from_bytes_be(&c.compiled_class_hash().to_be_bytes()));
-    // }
-
     println!("class_hash to compiled_class_hash");
     for (ch, cch) in &class_hash_to_compiled_class_hash {
         println!("\t{} -> {}", ch, cch);
@@ -332,10 +291,9 @@ pub fn os_hints(
     };
 
     // Convert the Blockifier storage into an OS-compatible one
-    // TODO:
-    // let contract_storage_map = build_starknet_storage(&mut blockifier_state);
+    let contract_storage_map =
+        build_starknet_storage(blockifier_state).expect("Building the storage map should not fail");
 
-    /*
     let execution_helper = ExecutionHelperWrapper::new(
         contract_storage_map,
         tx_execution_infos,
@@ -344,6 +302,4 @@ pub fn os_hints(
     );
 
     (os_input, execution_helper)
-    */
-    panic!("Fixme!");
 }
