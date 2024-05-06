@@ -24,7 +24,8 @@ use snos::starkware_utils::commitment_tree::patricia_tree::patricia_tree::Patric
 use snos::storage::dict_storage::DictStorage;
 use snos::storage::storage::FactFetchingContext;
 use snos::storage::storage_utils::build_starknet_storage;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
+use snos::utils::{felt_api2vm, felt_vm2api};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, PatriciaKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::stark_felt;
@@ -200,19 +201,21 @@ pub fn os_hints(
     transactions: Vec<InternalTransaction>,
     tx_execution_infos: Vec<TransactionExecutionInfo>,
 ) -> (StarknetOsInput, ExecutionHelperWrapper) {
-    let mut contracts: HashMap<Felt252, ContractState> = blockifier_state
-        .state
-        .address_to_class_hash
-        .keys()
-        .map(|address| {
-            let contract_state = ContractState {
-                contract_hash: to_felt252(&blockifier_state.state.address_to_class_hash.get(address).unwrap().0),
-                storage_commitment_tree: PatriciaTree::default(), // TODO
-                nonce: 0.into(),                                  // TODO
-            };
+    let shared_state = &blockifier_state.state;
+    let mut contracts: HashMap<Felt252, ContractState> = shared_state
+        .contract_addresses()
+        .iter()
+        .map(|address_biguint| {
+            // TODO: biguint is exacerbating the type conversion problem, ideas...?
+            let address: ContractAddress =
+                ContractAddress(PatriciaKey::try_from(felt_vm2api(Felt252::from(address_biguint))).unwrap());
+            let contract_state =
+                execute_coroutine_threadsafe(async { shared_state.get_contract_state(address) }).unwrap();
+
             (to_felt252(address.0.key()), contract_state)
         })
         .collect();
+    let mut contracts: HashMap<Felt252, ContractState> = Default::default();
 
     let mut deprecated_compiled_classes: HashMap<Felt252, DeprecatedContractClass> = Default::default();
     let mut compiled_classes: HashMap<Felt252, CasmContractClass> = Default::default();
@@ -239,8 +242,9 @@ pub fn os_hints(
         };
     }
 
-    contracts.insert(Felt252::from(0), ContractState::default());
-    contracts.insert(Felt252::from(1), ContractState::default());
+    // TODO: FFC is in the way again here
+    // contracts.insert(Felt252::from(0), ContractState::empty(251, shared_state.ffc));
+    // contracts.insert(Felt252::from(1), ContractState::empty(251, shared_state.ffc));
 
     println!("contracts: {:?}\ndeprecated_compiled_classes: {:?}", contracts.len(), deprecated_compiled_classes.len());
 
