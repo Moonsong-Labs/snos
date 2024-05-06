@@ -21,11 +21,10 @@ use snos::starknet::business_logic::fact_state::contract_state_objects::Contract
 use snos::starknet::business_logic::fact_state::state::SharedState;
 use snos::starknet::starknet_storage::execute_coroutine_threadsafe;
 use snos::starkware_utils::commitment_tree::base_types::Height;
-use snos::starkware_utils::commitment_tree::patricia_tree::patricia_tree::PatriciaTree;
 use snos::storage::dict_storage::DictStorage;
 use snos::storage::storage::FactFetchingContext;
 use snos::storage::storage_utils::build_starknet_storage;
-use snos::utils::{felt_api2vm, felt_vm2api};
+use snos::utils::felt_vm2api;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, PatriciaKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::{StarkFelt, StarkHash};
@@ -221,12 +220,18 @@ pub fn os_hints(
     let mut compiled_classes: HashMap<Felt252, CasmContractClass> = Default::default();
     let mut class_hash_to_compiled_class_hash: HashMap<Felt252, Felt252> = Default::default();
 
-    contracts.insert(Felt252::from(0), execute_coroutine_threadsafe(async {
-        ContractState::empty(Height(251), &mut blockifier_state.state.ffc).await.unwrap()
-    }));
-    contracts.insert(Felt252::from(1), execute_coroutine_threadsafe(async {
-        ContractState::empty(Height(251), &mut blockifier_state.state.ffc).await.unwrap()
-    }));
+    contracts.insert(
+        Felt252::from(0),
+        execute_coroutine_threadsafe(async {
+            ContractState::empty(Height(251), &mut blockifier_state.state.ffc).await.unwrap()
+        }),
+    );
+    contracts.insert(
+        Felt252::from(1),
+        execute_coroutine_threadsafe(async {
+            ContractState::empty(Height(251), &mut blockifier_state.state.ffc).await.unwrap()
+        }),
+    );
 
     for c in contracts.keys() {
         let class_hash = blockifier_state
