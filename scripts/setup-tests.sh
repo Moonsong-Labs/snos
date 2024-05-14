@@ -41,6 +41,9 @@ mkdir -p build/programs
 cairo-format -i tests/integration/programs/*
 cairo-compile tests/integration/programs/fact.cairo --output build/programs/fact.json
 
+# compile the Cairo 0 hasher program
+cairo-compile cairo-lang/src/starkware/starknet/core/os/contract_class/deprecated_compiled_class.cairo --output build/deprecated_compiled_class.json --cairo_path cairo-lang/src
+
 # compile os with debug info
 cairo-compile --debug_info_with_source cairo-lang/src/starkware/starknet/core/os/os.cairo --output build/os_debug.json --cairo_path cairo-lang/src
 cairo-compile cairo-lang/src/starkware/starknet/core/os/os.cairo --output build/os_latest.json --cairo_path cairo-lang/src
