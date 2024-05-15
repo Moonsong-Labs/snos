@@ -17,6 +17,7 @@ use snos::execution::helper::ExecutionHelperWrapper;
 use snos::io::input::StarknetOsInput;
 use snos::io::InternalTransaction;
 use snos::starknet::starknet_storage::execute_coroutine_threadsafe;
+use snos::state::SharedState;
 use snos::{config, run_os};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::hash::StarkFelt;
@@ -26,6 +27,8 @@ use starknet_crypto::{pedersen_hash, FieldElement};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedCompiledClass;
 
 use crate::common::block_utils::os_hints;
+
+use super::block_utils::TestState;
 
 pub fn to_felt252(stark_felt: &StarkFelt) -> Felt252 {
     Felt252::from_bytes_be_slice(stark_felt.bytes())
@@ -141,10 +144,9 @@ pub fn to_internal_tx(account_tx: &AccountTransaction) -> InternalTransaction {
 }
 
 async fn execute_txs(
-    mut state: CachedState<DictStateReader>,
+    mut test_state: TestState,
     block_context: &BlockContext,
     txs: Vec<AccountTransaction>,
-    deprecated_contract_classes: HashMap<ClassHash, DeprecatedCompiledClass>,
 ) -> (StarknetOsInput, ExecutionHelperWrapper) {
     let upper_bound_block_number = block_context.block_number.0 - STORED_BLOCK_HASH_BUFFER;
     let block_number = StorageKey::from(upper_bound_block_number);
@@ -152,21 +154,20 @@ async fn execute_txs(
 
     let block_hash_contract_address = ContractAddress::try_from(stark_felt!(BLOCK_HASH_CONTRACT_ADDRESS)).unwrap();
 
-    state.set_storage_at(block_hash_contract_address, block_number, block_hash).unwrap();
+    test_state.shared_state.cache.set_storage_at(block_hash_contract_address, block_number, block_hash).unwrap();
 
     let internal_txs: Vec<_> = txs.iter().map(to_internal_tx).collect();
     let execution_infos =
-        txs.into_iter().map(|tx| tx.execute(&mut state, block_context, true, true).unwrap()).collect();
-    os_hints(&block_context, state, internal_txs, execution_infos, deprecated_contract_classes).await
+        txs.into_iter().map(|tx| tx.execute(&mut test_state.shared_state.cache, block_context, true, true).unwrap()).collect();
+    os_hints(&block_context, test_state, internal_txs, execution_infos).await
 }
 
 pub fn execute_txs_and_run_os(
-    state: CachedState<DictStateReader>,
+    test_state: TestState,
     block_context: BlockContext,
     txs: Vec<AccountTransaction>,
-    deprecated_contract_classes: HashMap<ClassHash, DeprecatedCompiledClass>,
 ) -> Result<CairoPie, SnOsError> {
-    let (os_input, execution_helper) = execute_coroutine_threadsafe(async { execute_txs(state, &block_context, txs, deprecated_contract_classes).await });
+    let (os_input, execution_helper) = execute_coroutine_threadsafe(async { execute_txs(test_state, &block_context, txs).await });
 
     let layout = config::default_layout();
     let result = run_os(config::DEFAULT_COMPILED_OS.to_string(), layout, os_input, block_context, execution_helper);

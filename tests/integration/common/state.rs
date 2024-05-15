@@ -14,7 +14,7 @@ use snos::storage::storage::FactFetchingContext;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedCompiledClass;
 
-use super::block_utils::test_state_no_feature_contracts;
+use super::block_utils::{test_state_no_feature_contracts, TestState};
 use crate::common::block_context;
 use crate::common::block_utils::test_state;
 use crate::common::blockifier_contracts::{get_deprecated_erc20_contract_class, get_deprecated_feature_contract_class};
@@ -65,12 +65,9 @@ pub struct Cairo0Contracts {
     pub erc20_contract: DeprecatedCompiledClass,
 }
 
-#[derive(Debug)]
 pub struct Cairo0InitialState {
-    pub state: CachedState<DictStateReader>,
     pub contracts: Cairo0Contracts,
-    pub deployed_addresses: Vec<ContractAddress>,
-    pub deprecated_contract_classes: HashMap<ClassHash, DeprecatedCompiledClass>,
+    pub test_state: TestState,
 }
 
 #[fixture]
@@ -88,7 +85,7 @@ pub async fn cairo0_initial_state(
     cairo0_contracts: Cairo0Contracts,
 ) -> Cairo0InitialState {
     let ffc = &mut FactFetchingContext::<_, PedersenHash>::new(DictStorage::default());
-    let (state, deployed_addresses, deprecated_contract_classes) = test_state_no_feature_contracts(
+    let test_state = test_state_no_feature_contracts(
         &block_context,
         BALANCE,
         &cairo0_contracts.erc20_contract,
@@ -106,5 +103,5 @@ pub async fn cairo0_initial_state(
         );
     }
 
-    Cairo0InitialState { state, deployed_addresses, contracts: cairo0_contracts, deprecated_contract_classes }
+    Cairo0InitialState { test_state, contracts: cairo0_contracts }
 }

@@ -12,6 +12,7 @@ use blockifier::test_utils::contracts::FeatureContract::{
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
+use blockifier::transaction::test_utils::block_context;
 use cairo_lang_starknet::casm_contract_class::CasmContractClass;
 use cairo_vm::Felt252;
 use snos::config::{StarknetGeneralConfig, StarknetOsConfig, STORED_BLOCK_HASH_BUFFER};
@@ -19,6 +20,7 @@ use snos::execution::helper::ExecutionHelperWrapper;
 use snos::io::input::{ContractState, StarknetOsInput, StorageCommitment};
 use snos::io::InternalTransaction;
 use snos::starknet::business_logic::utils::write_deprecated_compiled_class_fact;
+use snos::state::SharedState;
 use snos::storage::storage::{FactFetchingContext, HashFunctionType, Storage, StorageError};
 use snos::storage::storage_utils::build_starknet_storage;
 use snos::utils::felt_api2vm;
@@ -31,6 +33,13 @@ use starknet_api::{contract_address, patricia_key, stark_felt};
 use starknet_crypto::FieldElement;
 
 use crate::common::transaction_utils::to_felt252;
+
+/// Struct that stores test state during test execution.
+pub struct TestState {
+    pub shared_state: SharedState<DictStateReader>,
+    pub deployed_addresses: Vec<ContractAddress>,
+    pub deprecated_compiled_classes: HashMap<ClassHash, DeprecatedContractClass>,
+}
 
 pub fn compiled_class(class_hash: ClassHash) -> CasmContractClass {
     let variants = vec![
@@ -130,10 +139,7 @@ pub async fn test_state_no_feature_contracts<S, H>(
     erc20_class: &DeprecatedCompiledClass,
     contract_classes: &[&DeprecatedCompiledClass],
     ffc: &mut FactFetchingContext<S, H>,
-) -> Result<
-    (CachedState<DictStateReader>, Vec<ContractAddress>, HashMap<ClassHash, DeprecatedContractClass>),
-    StorageError,
->
+) -> Result<TestState, StorageError>
 where
     S: Storage,
     H: HashFunctionType,
@@ -151,8 +157,8 @@ where
     state.address_to_class_hash.insert(block_context.fee_token_address(&FeeType::Strk), erc20_class_hash);
 
     let mut deployed_addresses = Vec::new();
-    let mut deprecated_contract_classes = HashMap::new();
-    deprecated_contract_classes.insert(erc20_class_hash, (*erc20_class).clone());
+    let mut deprecated_compiled_classes = HashMap::new();
+    deprecated_compiled_classes.insert(erc20_class_hash, (*erc20_class).clone());
 
     // Set up the rest of the requested contracts.
     for contract in contract_classes {
@@ -170,7 +176,7 @@ where
         state.address_to_class_hash.insert(address, class_hash);
         println!(" - address: {:?}", address);
         deployed_addresses.push(address);
-        deprecated_contract_classes.insert(class_hash, (*contract).clone()); // TODO: remove
+        deprecated_compiled_classes.insert(class_hash, (*contract).clone()); // TODO: remove
     }
 
     let mut addresses: HashSet<ContractAddress> = Default::default();
@@ -203,7 +209,13 @@ where
         println!("   - {:?} -> <omitted>", k);
     }
 
-    Ok((CachedState::from(state), deployed_addresses, deprecated_contract_classes))
+    let blockifier_state = CachedState::from(state);
+
+    Ok(TestState {
+        deployed_addresses: deployed_addresses,
+        deprecated_compiled_classes,
+        shared_state: SharedState::new(blockifier_state, block_context.clone()),
+    })
 }
 
 pub fn test_state(
@@ -259,13 +271,12 @@ pub fn test_state(
 
 pub async fn os_hints(
     block_context: &BlockContext,
-    mut blockifier_state: CachedState<DictStateReader>,
+    mut test_state: TestState,
     transactions: Vec<InternalTransaction>,
     tx_execution_infos: Vec<TransactionExecutionInfo>,
-    deprecated_compiled_classes: HashMap<ClassHash, DeprecatedContractClass>,
 ) -> (StarknetOsInput, ExecutionHelperWrapper) {
-    let deployed_addresses = blockifier_state.to_state_diff().address_to_class_hash;
-    let initial_addresses = blockifier_state.state.address_to_class_hash.keys().cloned().collect::<HashSet<_>>();
+    let deployed_addresses = test_state.shared_state.cache.to_state_diff().address_to_class_hash;
+    let initial_addresses = test_state.shared_state.cache.state.address_to_class_hash.keys().cloned().collect::<HashSet<_>>();
     let addresses = deployed_addresses.keys().cloned().chain(initial_addresses);
 
     let mut contracts: HashMap<Felt252, ContractState> = addresses
@@ -274,7 +285,7 @@ pub async fn os_hints(
             let contract_hash = if deployed_addresses.contains_key(&address) {
                 Felt252::ZERO
             } else {
-                to_felt252(&blockifier_state.get_class_hash_at(address).unwrap().0)
+                to_felt252(&test_state.shared_state.cache.get_class_hash_at(address).unwrap().0)
             };
             let contract_state = ContractState {
                 contract_hash,
@@ -290,8 +301,8 @@ pub async fn os_hints(
 
     for c in contracts.keys() {
         let address = ContractAddress::try_from(StarkHash::new(c.to_bytes_be()).unwrap()).unwrap();
-        let class_hash = blockifier_state.get_class_hash_at(address).unwrap();
-        let blockifier_class = blockifier_state.get_compiled_contract_class(class_hash).unwrap();
+        let class_hash = test_state.shared_state.cache.get_class_hash_at(address).unwrap();
+        let blockifier_class = test_state.shared_state.cache.get_compiled_contract_class(class_hash).unwrap();
         match blockifier_class {
             V0(_) => {}
             V1(_) => {
@@ -307,7 +318,7 @@ pub async fn os_hints(
     contracts.insert(Felt252::from(0), ContractState::default());
     contracts.insert(Felt252::from(1), ContractState::default());
 
-    println!("contracts: {:?}\ndeprecated_compiled_classes: {:?}", contracts.len(), deprecated_compiled_classes.len());
+    println!("contracts: {:?}\ndeprecated_compiled_classes: {:?}", contracts.len(), test_state.deprecated_compiled_classes.len());
 
     println!("contracts to class_hash");
     for (a, c) in &contracts {
@@ -315,7 +326,7 @@ pub async fn os_hints(
     }
 
     println!("deprecated classes");
-    for (c, _) in &deprecated_compiled_classes {
+    for (c, _) in &test_state.deprecated_compiled_classes {
         println!("\t{}", c);
     }
 
@@ -324,7 +335,7 @@ pub async fn os_hints(
         println!("\t{}", c);
     }
 
-    // for h in deprecated_compiled_classes.keys() {
+    // for h in test_state.deprecated_compiled_classes.keys() {
     //     class_hash_to_compiled_class_hash.insert(h.clone(), h.clone());
     // }
 
@@ -350,11 +361,14 @@ pub async fn os_hints(
     };
 
     let deprecated_compiled_classes: HashMap<_, _> =
-        deprecated_compiled_classes.into_iter().map(|(k, v)| (felt_api2vm(k.0), v)).collect();
+        test_state.deprecated_compiled_classes.into_iter().map(|(k, v)| (felt_api2vm(k.0), v)).collect();
+
+    let contract_state_commitment_info = test_state.shared_state.apply_state();
+    let contract_class_commitment_info = test_state.shared_state.apply_class_state();
 
     let os_input = StarknetOsInput {
-        contract_state_commitment_info: Default::default(),
-        contract_class_commitment_info: Default::default(),
+        contract_state_commitment_info,
+        contract_class_commitment_info,
         deprecated_compiled_classes,
         compiled_classes,
         compiled_class_visited_pcs: Default::default(),
@@ -366,7 +380,7 @@ pub async fn os_hints(
     };
 
     // Convert the Blockifier storage into an OS-compatible one
-    let contract_storage_map = build_starknet_storage(&mut blockifier_state).await;
+    let contract_storage_map = build_starknet_storage(&mut test_state.shared_state.cache).await;
 
     let execution_helper = ExecutionHelperWrapper::new(
         contract_storage_map,
