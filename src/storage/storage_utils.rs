@@ -7,7 +7,7 @@ use cairo_vm::Felt252;
 use starknet_api::hash::StarkFelt;
 
 use crate::execution::helper::ContractStorageMap;
-use crate::starknet::starknet_storage::{execute_coroutine_threadsafe, OsSingleStarknetStorage, StorageLeaf};
+use crate::starknet::starknet_storage::{OsSingleStarknetStorage, StorageLeaf};
 use crate::starkware_utils::commitment_tree::base_types::Height;
 use crate::starkware_utils::commitment_tree::binary_fact_tree::BinaryFactTree;
 use crate::starkware_utils::commitment_tree::errors::TreeError;
@@ -144,10 +144,8 @@ pub async fn build_starknet_storage(blockifier_state: &mut CachedState<DictState
         let final_contract_storage =
             final_contract_storage_map.get(contract_address).expect("any contract should appear in final storage");
 
-        let initial_tree =
-            build_patricia_tree_from_contract_storage(&mut ffc, initial_contract_storage).await.unwrap();
-        let updated_tree =
-            build_patricia_tree_from_contract_storage(&mut ffc, final_contract_storage).await.unwrap();
+        let initial_tree = build_patricia_tree_from_contract_storage(&mut ffc, initial_contract_storage).await.unwrap();
+        let updated_tree = build_patricia_tree_from_contract_storage(&mut ffc, final_contract_storage).await.unwrap();
 
         let contract_storage =
             OsSingleStarknetStorage::new(initial_tree, updated_tree, &[], ffc.clone()).await.unwrap();
