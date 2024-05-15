@@ -7,6 +7,7 @@ use blockifier::transaction::test_utils;
 use blockifier::transaction::test_utils::max_fee;
 use rstest::rstest;
 use snos::config::STORED_BLOCK_HASH_BUFFER;
+use snos::starknet::starknet_storage::execute_coroutine_threadsafe;
 use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
 use starknet_api::transaction::{Fee, TransactionVersion};
@@ -16,21 +17,19 @@ use crate::common::state::{cairo0_initial_state, initial_state, Cairo0InitialSta
 use crate::common::transaction_utils::execute_txs_and_run_os;
 
 #[rstest]
-#[tokio::test]
-async fn test_cairo0_state(#[future] cairo0_initial_state: Cairo0InitialState) {
-    let cairo0_initial_state = cairo0_initial_state.await;
+fn test_cairo0_state(#[future] cairo0_initial_state: Cairo0InitialState) {
+    let cairo0_initial_state = execute_coroutine_threadsafe(async { cairo0_initial_state.await });
 
     println!("{}", serde_json::to_string(&cairo0_initial_state.contracts.test_contract).unwrap());
 }
 
 #[rstest]
-#[tokio::test]
-async fn return_result_cairo0_account_no_feature_contracts(
+fn return_result_cairo0_account_no_feature_contracts(
     #[future] cairo0_initial_state: Cairo0InitialState,
     block_context: BlockContext,
     max_fee: Fee,
 ) {
-    let cairo0_initial_state = cairo0_initial_state.await;
+    let cairo0_initial_state = execute_coroutine_threadsafe(async { cairo0_initial_state.await });
 
     // temp assertion about a brittle / WIP assumption (that we are deploying two contracts)
     assert_eq!(cairo0_initial_state.deployed_addresses.len(), 2);
@@ -60,8 +59,7 @@ async fn return_result_cairo0_account_no_feature_contracts(
         block_context,
         vec![return_result_tx],
         cairo0_initial_state.deprecated_contract_classes,
-    )
-    .await;
+    );
 
     // temporarily expect test to break in the descent code
     let err_log = format!("{:?}", r);
@@ -69,8 +67,7 @@ async fn return_result_cairo0_account_no_feature_contracts(
 }
 
 #[rstest]
-#[tokio::test]
-async fn return_result_cairo0_account(block_context: BlockContext, initial_state: InitialState, max_fee: Fee) {
+fn return_result_cairo0_account(block_context: BlockContext, initial_state: InitialState, max_fee: Fee) {
     let tx_version = TransactionVersion::ZERO;
     let mut nonce_manager = NonceManager::default();
 
@@ -93,7 +90,7 @@ async fn return_result_cairo0_account(block_context: BlockContext, initial_state
         nonce: nonce_manager.next(sender_address),
     });
 
-    let r = execute_txs_and_run_os(state, block_context, vec![return_result_tx], Default::default()).await;
+    let r = execute_txs_and_run_os(state, block_context, vec![return_result_tx], Default::default());
 
     // temporarily expect test to break in the descent code
     let err_log = format!("{:?}", r);
@@ -101,8 +98,7 @@ async fn return_result_cairo0_account(block_context: BlockContext, initial_state
 }
 
 #[rstest]
-#[tokio::test]
-async fn return_result_cairo1_account(block_context: BlockContext, initial_state: InitialState, max_fee: Fee) {
+fn return_result_cairo1_account(block_context: BlockContext, initial_state: InitialState, max_fee: Fee) {
     let tx_version = TransactionVersion::ZERO;
     let mut nonce_manager = NonceManager::default();
 
@@ -125,7 +121,7 @@ async fn return_result_cairo1_account(block_context: BlockContext, initial_state
         nonce: nonce_manager.next(sender_address),
     });
 
-    let r = execute_txs_and_run_os(state, block_context, vec![return_result_tx], Default::default()).await;
+    let r = execute_txs_and_run_os(state, block_context, vec![return_result_tx], Default::default());
 
     // temporarily expect test to break in the descent code
     let err_log = format!("{:?}", r);
@@ -133,8 +129,7 @@ async fn return_result_cairo1_account(block_context: BlockContext, initial_state
 }
 
 #[rstest]
-#[tokio::test]
-async fn syscalls_cairo1(block_context: BlockContext, initial_state: InitialState, max_fee: Fee) {
+fn syscalls_cairo1(block_context: BlockContext, initial_state: InitialState, max_fee: Fee) {
     let tx_version = TransactionVersion::ZERO;
     let mut nonce_manager = NonceManager::default();
 
@@ -222,7 +217,7 @@ async fn syscalls_cairo1(block_context: BlockContext, initial_state: InitialStat
         test_deploy_tx,
     ];
 
-    let r = execute_txs_and_run_os(state, block_context, txs, Default::default()).await;
+    let r = execute_txs_and_run_os(state, block_context, txs, Default::default());
 
     // temporarily expect test to break in the descent code
     let err_log = format!("{:?}", r);

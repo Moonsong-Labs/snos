@@ -16,6 +16,7 @@ use snos::error::SnOsError::Runner;
 use snos::execution::helper::ExecutionHelperWrapper;
 use snos::io::input::StarknetOsInput;
 use snos::io::InternalTransaction;
+use snos::starknet::starknet_storage::execute_coroutine_threadsafe;
 use snos::{config, run_os};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::hash::StarkFelt;
@@ -159,13 +160,13 @@ async fn execute_txs(
     os_hints(&block_context, state, internal_txs, execution_infos, deprecated_contract_classes).await
 }
 
-pub async fn execute_txs_and_run_os(
+pub fn execute_txs_and_run_os(
     state: CachedState<DictStateReader>,
     block_context: BlockContext,
     txs: Vec<AccountTransaction>,
     deprecated_contract_classes: HashMap<ClassHash, DeprecatedCompiledClass>,
 ) -> Result<CairoPie, SnOsError> {
-    let (os_input, execution_helper) = execute_txs(state, &block_context, txs, deprecated_contract_classes).await;
+    let (os_input, execution_helper) = execute_coroutine_threadsafe(async { execute_txs(state, &block_context, txs, deprecated_contract_classes).await });
 
     let layout = config::default_layout();
     let result = run_os(config::DEFAULT_COMPILED_OS.to_string(), layout, os_input, block_context, execution_helper);
