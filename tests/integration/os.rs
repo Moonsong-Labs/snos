@@ -24,7 +24,7 @@ async fn test_cairo0_state(#[future] cairo0_initial_state: Cairo0InitialState) {
 }
 
 #[rstest]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn return_result_cairo0_account_no_feature_contracts(
     #[future] cairo0_initial_state: Cairo0InitialState,
     block_context: BlockContext,
