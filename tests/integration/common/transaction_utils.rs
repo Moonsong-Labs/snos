@@ -27,7 +27,7 @@ use starknet_api::stark_felt;
 use starknet_api::state::StorageKey;
 use starknet_crypto::{pedersen_hash, FieldElement};
 
-use crate::common::block_utils::os_hints;
+use crate::common::block_utils::prepare_os_input;
 
 pub fn to_felt252(stark_felt: &StarkFelt) -> Felt252 {
     Felt252::from_bytes_be_slice(stark_felt.bytes())
@@ -160,7 +160,15 @@ async fn execute_txs(
     let internal_txs: Vec<_> = txs.iter().map(to_internal_tx).collect();
     let execution_infos =
         txs.into_iter().map(|tx| tx.execute(&mut state, block_context, true, true).unwrap()).collect();
-    os_hints(&block_context, state, internal_txs, execution_infos, deprecated_contract_classes, contract_classes).await
+    prepare_os_input(
+        &block_context,
+        state,
+        internal_txs,
+        execution_infos,
+        deprecated_contract_classes,
+        contract_classes,
+    )
+    .await
 }
 
 pub async fn execute_txs_and_run_os(

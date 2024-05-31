@@ -26,9 +26,9 @@ use starknet_api::hash::StarkHash;
 
 use crate::common::transaction_utils::to_felt252;
 
-pub async fn os_hints(
+pub async fn prepare_os_input(
     block_context: &BlockContext,
-    mut blockifier_state: CachedState<SharedState<DictStorage, PedersenHash>>,
+    mut cached_state: CachedState<SharedState<DictStorage, PedersenHash>>,
     transactions: Vec<InternalTransaction>,
     tx_execution_infos: Vec<TransactionExecutionInfo>,
     deprecated_compiled_classes: HashMap<ClassHash, DeprecatedContractClass>,
@@ -36,7 +36,7 @@ pub async fn os_hints(
 ) -> (StarknetOsInput, ExecutionHelperWrapper) {
     let mut compiled_class_hash_to_compiled_class: HashMap<Felt252, CasmContractClass> = HashMap::new();
 
-    let mut contracts: HashMap<Felt252, ContractState> = blockifier_state
+    let mut contracts: HashMap<Felt252, ContractState> = cached_state
         .state
         .contract_addresses()
         .iter()
@@ -44,18 +44,18 @@ pub async fn os_hints(
             // TODO: biguint is exacerbating the type conversion problem, ideas...?
             let address: ContractAddress =
                 ContractAddress(PatriciaKey::try_from(felt_vm2api(Felt252::from(address_biguint))).unwrap());
-            let contract_state = blockifier_state.state.get_contract_state(address).unwrap();
+            let contract_state = cached_state.state.get_contract_state(address).unwrap();
             (to_felt252(address.0.key()), contract_state)
         })
         .collect();
 
     // provide an empty ContractState for any newly deployed contract
     // TODO: review -- what can to_state_diff() give us results we don't want to use here?
-    let deployed_addresses = blockifier_state.to_state_diff().address_to_class_hash;
+    let deployed_addresses = cached_state.to_state_diff().address_to_class_hash;
     for (address, _class_hash) in deployed_addresses {
         contracts.insert(
             to_felt252(address.0.key()),
-            ContractState::empty(Height(251), &mut blockifier_state.state.ffc).await.unwrap(),
+            ContractState::empty(Height(251), &mut cached_state.state.ffc).await.unwrap(),
         );
     }
 
@@ -63,8 +63,8 @@ pub async fn os_hints(
 
     for c in contracts.keys() {
         let address = ContractAddress::try_from(StarkHash::new(c.to_bytes_be()).unwrap()).unwrap();
-        let class_hash = blockifier_state.get_class_hash_at(address).unwrap();
-        let blockifier_class = blockifier_state.get_compiled_contract_class(class_hash).unwrap();
+        let class_hash = cached_state.get_class_hash_at(address).unwrap();
+        let blockifier_class = cached_state.get_compiled_contract_class(class_hash).unwrap();
         match blockifier_class {
             V0(_) => {} // deprecated_compiled_classes are passed in by caller
             V1(_) => {
@@ -78,10 +78,8 @@ pub async fn os_hints(
         };
     }
 
-    contracts
-        .insert(Felt252::from(0), ContractState::empty(Height(251), &mut blockifier_state.state.ffc).await.unwrap());
-    contracts
-        .insert(Felt252::from(1), ContractState::empty(Height(251), &mut blockifier_state.state.ffc).await.unwrap());
+    contracts.insert(Felt252::from(0), ContractState::empty(Height(251), &mut cached_state.state.ffc).await.unwrap());
+    contracts.insert(Felt252::from(1), ContractState::empty(Height(251), &mut cached_state.state.ffc).await.unwrap());
 
     log::debug!(
         "contracts: {:?}\ndeprecated_compiled_classes: {:?}",
@@ -123,11 +121,11 @@ pub async fn os_hints(
     let deprecated_compiled_classes: HashMap<_, _> =
         deprecated_compiled_classes.into_iter().map(|(k, v)| (felt_api2vm(k.0), v)).collect();
 
-    let mut ffc = blockifier_state.state.ffc.clone();
+    let mut ffc = cached_state.state.ffc.clone();
 
     // Convert the Blockifier storage into an OS-compatible one
     let (contract_storage_map, previous_state, updated_state) =
-        build_starknet_storage_async(blockifier_state).await.unwrap();
+        build_starknet_storage_async(cached_state).await.unwrap();
 
     // Pass all contract addresses as expected accessed indices
     let contract_indices: HashSet<TreeIndex> =
