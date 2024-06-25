@@ -15,6 +15,7 @@ use cairo_vm::Felt252;
 use num_bigint::BigUint;
 use snos::config::{BLOCK_HASH_CONTRACT_ADDRESS, SN_GOERLI, STORED_BLOCK_HASH_BUFFER};
 use snos::crypto::pedersen::PedersenHash;
+use snos::crypto::poseidon::poseidon_hash_many_bytes;
 use snos::error::SnOsError;
 use snos::error::SnOsError::Runner;
 use snos::execution::helper::ExecutionHelperWrapper;
@@ -34,7 +35,7 @@ use starknet_api::transaction::{
     DeclareTransactionV2, InvokeTransactionV0, InvokeTransactionV1, InvokeTransactionV3, Resource,
     ResourceBoundsMapping,
 };
-use starknet_crypto::{pedersen_hash, poseidon_hash, FieldElement};
+use starknet_crypto::{pedersen_hash, FieldElement};
 
 use crate::common::block_utils::os_hints;
 
@@ -138,25 +139,9 @@ pub fn hash_on_elements(data: Vec<Felt252>) -> Felt252 {
 }
 
 fn poseidon_hash_on_elements(data: &[Felt252]) -> Felt252 {
-    let mut current_hash = Felt252::ZERO;
-
-    for item in data.iter() {
-        current_hash = hash(&current_hash, item);
-    }
-
-    let data_len = Felt252::from(data.len());
-
-    let result = _poseidon_hash(&current_hash, &data_len);
-    pub fn _poseidon_hash(a: &Felt252, b: &Felt252) -> Felt252 {
-        let a_be_bytes = a.to_bytes_be();
-        let b_be_bytes = b.to_bytes_be();
-        let (x, y) =
-            (FieldElement::from_bytes_be(&a_be_bytes).unwrap(), FieldElement::from_bytes_be(&b_be_bytes).unwrap());
-
-        let result = poseidon_hash(x, y);
-        Felt252::from_bytes_be(&result.to_bytes_be())
-    }
-    result
+    let data_as_bytes: Vec<_> = data.iter().map(|felt| felt.to_bytes_be().to_vec()).collect();
+    let data_ref: Vec<&[u8]> = data_as_bytes.iter().map(|bytes| bytes.as_slice()).collect();
+    Felt252::from_bytes_be_slice(&(*poseidon_hash_many_bytes(&data_ref).unwrap()))
 }
 
 pub fn hash(a: &Felt252, b: &Felt252) -> Felt252 {
