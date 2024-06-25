@@ -391,7 +391,6 @@ pub fn to_internal_invoke_v3_tx(tx: &InvokeTransactionV3) -> InternalTransaction
     return InternalTransaction {
         hash_value,
         version: Some(Felt252::THREE),
-        contract_address: None,
         nonce: Some(nonce),
         sender_address: Some(sender_address),
         entry_point_selector: Some(entry_point_selector),
