@@ -123,10 +123,10 @@ pub fn init_logging() {
 }
 
 #[derive(Debug)]
-struct Cairo0Contract {
-    deprecated_compiled_class: DeprecatedCompiledClass,
+pub struct Cairo0Contract {
+    pub deprecated_compiled_class: DeprecatedCompiledClass,
     /// Contract address to use when deploying the contract.
-    address: ContractAddress,
+    pub address: ContractAddress,
 }
 
 #[derive(Debug)]
