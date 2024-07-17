@@ -8,7 +8,7 @@ use cairo_vm::Felt252;
 use tokio::sync::RwLock;
 
 use super::helper::ExecutionHelperWrapper;
-use crate::cairo_types::new_syscalls;
+use crate::cairo_types::new_syscalls::{self, StorageReadRequest, StorageWriteRequest};
 use crate::execution::constants::{
     BLOCK_HASH_CONTRACT_ADDRESS, CALL_CONTRACT_GAS_COST, DEPLOY_GAS_COST, EMIT_EVENT_GAS_COST, GET_BLOCK_HASH_GAS_COST,
     GET_EXECUTION_INFO_GAS_COST, LIBRARY_CALL_GAS_COST, REPLACE_CLASS_GAS_COST, SEND_MESSAGE_TO_L1_GAS_COST,
@@ -129,6 +129,7 @@ impl SyscallHandler for CallContractHandler {
         exec_wrapper: &mut ExecutionHelperWrapper<S>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<ReadOnlySegment> {
+        log::info!("executing call contract...");
         let mut eh_ref = exec_wrapper.execution_helper.write().await;
         let result_iter = &mut eh_ref.result_iter;
         let result = result_iter
@@ -420,26 +421,42 @@ pub struct StorageReadResponse {
 }
 
 impl SyscallHandler for StorageReadHandler {
-    type Request = EmptyRequest;
+    type Request = StorageReadRequest;
     type Response = StorageReadResponse;
 
-    fn read_request(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<EmptyRequest> {
+    fn read_request(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageReadRequest> {
         let address_domain = vm.get_integer(*ptr)?.into_owned();
         if address_domain != Felt252::ZERO {
             return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
         }
+        let key = vm.get_integer((*ptr + 1usize)?)?.into_owned();
         *ptr = (*ptr + new_syscalls::StorageReadRequest::cairo_size())?;
-        Ok(EmptyRequest)
+        Ok(StorageReadRequest {
+            address_domain,
+            key,
+        })
     }
     async fn execute<S: Storage + Clone + 'static>(
-        _request: EmptyRequest,
+        request: StorageReadRequest,
         _vm: &mut VirtualMachine,
         exec_wrapper: &mut ExecutionHelperWrapper<S>,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<StorageReadResponse> {
         let mut eh_ref = exec_wrapper.execution_helper.write().await;
 
-        let value = eh_ref.execute_code_read_iter.next().ok_or(HintError::SyscallError(
+        let value = eh_ref
+            .storage_by_address
+            .get_mut(&request.address_domain)
+            .expect("storage_by_address should contain currently executed contract")
+            .read(request.key)
+            .await
+            .ok_or(HintError::SyscallError(
+                    format!("Storage not found for contract {} at address {}", request.address_domain, request.key)
+                    .to_string()
+                    .into_boxed_str()
+            ))?;
+
+        let _ = eh_ref.execute_code_read_iter.next().ok_or(HintError::SyscallError(
             "n: No more storage reads available to replay".to_string().into_boxed_str(),
         ))?;
         Ok(StorageReadResponse { value })
@@ -456,23 +473,47 @@ impl SyscallHandler for StorageReadHandler {
 
 pub struct StorageWriteHandler;
 impl SyscallHandler for StorageWriteHandler {
-    type Request = EmptyRequest;
+    type Request = StorageWriteRequest;
     type Response = EmptyResponse;
 
-    fn read_request(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<EmptyRequest> {
+    fn read_request(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageWriteRequest> {
         let address_domain = vm.get_integer(*ptr)?.into_owned();
         if address_domain != Felt252::ZERO {
             return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
         }
+        let key = vm.get_integer((*ptr + 1usize)?)?.into_owned();
+        let value = vm.get_integer((*ptr + 2usize)?)?.into_owned();
         *ptr = (*ptr + new_syscalls::StorageWriteRequest::cairo_size())?;
-        Ok(EmptyRequest)
+        Ok(StorageWriteRequest {
+            address_domain,
+            key,
+            value,
+        })
     }
     async fn execute<S: Storage + Clone + 'static>(
-        _request: EmptyRequest,
+        request: StorageWriteRequest,
         _vm: &mut VirtualMachine,
-        _exec_wrapper: &mut ExecutionHelperWrapper<S>,
+        exec_wrapper: &mut ExecutionHelperWrapper<S>,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<EmptyResponse> {
+        let mut eh_ref = exec_wrapper.execution_helper.write().await;
+
+        let contract_address = eh_ref
+            .call_info
+            .as_ref()
+            .expect("must have current call info to call storage_read()")
+            .call
+            .storage_address;
+        let contract_address = felt_api2vm(*contract_address.0.key());
+
+        eh_ref
+            .storage_by_address
+            .get_mut(&contract_address)
+            .expect("storage_by_address should contain currently executed contract")
+            .write(request.key.to_biguint(), request.value);
+
+        log::warn!("StorageWriteHandler actually updating {} / {} => {}", contract_address, request.key, request.value);
+
         Ok(EmptyResponse {})
     }
     fn write_response(

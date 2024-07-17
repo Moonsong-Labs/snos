@@ -811,7 +811,8 @@ pub async fn execute_txs_and_run_os(
                 log::error!("traceback:\n{}", traceback);
             }
             if let Some(inst_location) = &vme.inst_location {
-                log::error!("died at: {}:{}", inst_location.input_file.filename, inst_location.start_line);
+                log::error!("died at: {}:{}\n", inst_location.input_file.filename, inst_location.start_line);
+                log::error!("message: {}\n", vme.inner_exc);
                 log::error!("inst_location:\n{:?}", inst_location);
             }
         }

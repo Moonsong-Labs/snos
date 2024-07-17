@@ -53,7 +53,7 @@ pub async fn delegate_call_async<S: Storage + Clone + 'static>(
     let syscall_handler = exec_scopes.get::<DeprecatedOsSyscallHandlerWrapper<S>>(vars::scopes::SYSCALL_HANDLER)?;
     let syscall_ptr = get_ptr_from_var_name(vars::ids::SYSCALL_PTR, vm, ids_data, ap_tracking)?;
 
-    syscall_handler.storage_write(syscall_ptr).await?;
+    syscall_handler.storage_write(syscall_ptr, vm).await?;
 
     Ok(())
 }
@@ -309,12 +309,7 @@ pub async fn storage_read_async<S: Storage + Clone + 'static>(
     let syscall_handler = exec_scopes.get::<DeprecatedOsSyscallHandlerWrapper<S>>(vars::scopes::SYSCALL_HANDLER)?;
     let syscall_ptr = get_ptr_from_var_name(vars::ids::SYSCALL_PTR, vm, ids_data, ap_tracking)?;
 
-    // TODO: address is passed to calling fn in OS, but should also be available from syscall ptr
-    /// let address = get_integer_from_var_name(vars::ids::ADDRESS, vm, ids_data, ap_tracking)?;
-
-    let address = vm.get_integer((syscall_ptr + 1usize).unwrap())?.into_owned();
-
-    syscall_handler.storage_read(syscall_ptr, vm, address).await?;
+    syscall_handler.storage_read(syscall_ptr, vm).await?;
 
     Ok(())
 }
@@ -340,7 +335,7 @@ pub async fn storage_write_async<S: Storage + Clone + 'static>(
     let syscall_handler = exec_scopes.get::<DeprecatedOsSyscallHandlerWrapper<S>>(vars::scopes::SYSCALL_HANDLER)?;
     let syscall_ptr = get_ptr_from_var_name(vars::ids::SYSCALL_PTR, vm, ids_data, ap_tracking)?;
 
-    syscall_handler.storage_write(syscall_ptr).await?;
+    syscall_handler.storage_write(syscall_ptr, vm).await?;
 
     Ok(())
 }

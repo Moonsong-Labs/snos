@@ -1188,6 +1188,8 @@ async fn cache_contract_storage<S: Storage + Clone + 'static>(
         .await
         .map_err(|_| custom_hint_error(format!("No storage found for contract {}", contract_address)))?;
 
+    log::info!("caching contract storage: {}/{} => {}", contract_address, key, value);
+
     let ids_value = get_integer_from_var_name(vars::ids::VALUE, vm, ids_data, ap_tracking)?;
     if ids_value != value {
         return Err(HintError::AssertionFailed(

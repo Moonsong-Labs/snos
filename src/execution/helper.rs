@@ -18,6 +18,7 @@ use crate::crypto::pedersen::PedersenHash;
 use crate::starknet::starknet_storage::{CommitmentInfo, CommitmentInfoError, OsSingleStarknetStorage};
 use crate::storage::dict_storage::DictStorage;
 use crate::storage::storage::{Storage, StorageError};
+use crate::utils::{felt_api2vm, felt_vm2api};
 
 // TODO: make the execution helper generic over the storage and hash function types.
 pub type ContractStorageMap<S, H> = HashMap<Felt252, OsSingleStarknetStorage<S, H>>;
@@ -103,6 +104,7 @@ impl<S: Storage + Clone + 'static> ExecutionHelperWrapper<S> {
     }
 
     pub async fn start_tx(&self, tx_info_ptr: Option<Relocatable>) {
+        log::warn!("STARTING NEW TX!");
         let mut eh_ref = self.execution_helper.write().await;
         assert!(eh_ref.tx_info_ptr.is_none());
         eh_ref.tx_info_ptr = tx_info_ptr;
@@ -111,6 +113,7 @@ impl<S: Storage + Clone + 'static> ExecutionHelperWrapper<S> {
         eh_ref.call_iter = eh_ref.tx_execution_info.as_ref().unwrap().gen_call_iterator();
     }
     pub async fn end_tx(&self) {
+        log::warn!("ENDING TX!");
         let mut eh_ref = self.execution_helper.write().await;
         assert!(eh_ref.call_iter.clone().peekable().peek().is_none());
         eh_ref.tx_info_ptr = None;
@@ -122,6 +125,7 @@ impl<S: Storage + Clone + 'static> ExecutionHelperWrapper<S> {
         self.end_tx().await
     }
     pub async fn enter_call(&self, execution_info_ptr: Option<Relocatable>) {
+        log::warn!("ENTERING CALL!");
         let mut eh_ref = self.execution_helper.write().await;
         assert!(eh_ref.call_execution_info_ptr.is_none());
         eh_ref.call_execution_info_ptr = execution_info_ptr;
@@ -157,6 +161,11 @@ impl<S: Storage + Clone + 'static> ExecutionHelperWrapper<S> {
             .collect::<Vec<CallResult>>()
             .into_iter();
 
+        log::info!("preview of storage reads for new call:");
+        for read_value in &call_info.storage_read_values {
+            log::info!("    {}", felt_api2vm(*read_value));
+        }
+
         // unpack storage reads
         eh_ref.execute_code_read_iter = call_info
             .storage_read_values
@@ -168,6 +177,7 @@ impl<S: Storage + Clone + 'static> ExecutionHelperWrapper<S> {
         eh_ref.call_info = Some(call_info);
     }
     pub async fn exit_call(&mut self) {
+        log::warn!("EXITING CALL!");
         let mut eh_ref = self.execution_helper.write().await;
         eh_ref.call_execution_info_ptr = None;
         assert_iterators_exhausted(&eh_ref);

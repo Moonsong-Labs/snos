@@ -79,8 +79,8 @@ pub struct SendMessageToL1Request {
 #[allow(unused)]
 #[derive(FieldOffsetGetters)]
 pub struct StorageReadRequest {
-    address_domain: Felt252,
-    key: Felt252,
+    pub address_domain: Felt252,
+    pub key: Felt252,
 }
 
 #[allow(unused)]

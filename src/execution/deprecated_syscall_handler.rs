@@ -247,7 +247,11 @@ impl<S: Storage + Clone + 'static> DeprecatedOsSyscallHandlerWrapper<S> {
     pub fn send_message_to_l1(&self) {
         // Nothing to do
     }
-    pub async fn storage_read(&self, syscall_ptr: Relocatable, vm: &mut VirtualMachine, address: Felt252) -> Result<(), HintError> {
+    pub async fn storage_read(&self, syscall_ptr: Relocatable, vm: &mut VirtualMachine) -> Result<(), HintError> {
+
+        // TODO: use proper syscall struct
+        let address = vm.get_integer((syscall_ptr + 1usize).unwrap())?.into_owned();
+
         let mut sys_hand = self.deprecated_syscall_handler.write().await;
 
         /*
@@ -308,9 +312,50 @@ impl<S: Storage + Clone + 'static> DeprecatedOsSyscallHandlerWrapper<S> {
 
         Ok(())
     }
-    pub async fn storage_write(&self, _syscall_ptr: Relocatable) -> Result<(), HintError> {
+    pub async fn storage_write(&self, syscall_ptr: Relocatable, vm: &mut VirtualMachine) -> Result<(), HintError> {
         let sys_hand = self.deprecated_syscall_handler.write().await;
 
+        // TODO: use proper syscall struct
+        let address = vm.get_integer((syscall_ptr + 1usize).unwrap())?.into_owned();
+        let value = vm.get_integer((syscall_ptr + 2usize).unwrap())?.into_owned();
+
+        // TODO: DRY
+        let contract_address = sys_hand
+            .exec_wrapper
+            .execution_helper
+            .read()
+            .await
+            .call_info
+            .as_ref()
+            .expect("must have current call info to call storage_read()")
+            .call
+            .storage_address;
+        let contract_address = felt_api2vm(*contract_address.0.key());
+
+        /*
+        if contract_address == 4097.into() {
+            return Err(HintError::SyscallError(
+                    format!("Caught presumed fee write")
+                    .to_string()
+                    .into_boxed_str()
+            ));
+        }
+        */
+
+        log::warn!("storage_write actually updating {} / {} => {}", contract_address, address, value);
+
+        sys_hand
+            .exec_wrapper
+            .execution_helper
+            .write()
+            .await
+            .storage_by_address
+            .get_mut(&contract_address)
+            .expect("storage_by_address should contain currently executed contract")
+            .write(address.to_biguint(), value);
+
+        // TODO: remove if we can deprecate this. We leave it here so we drain the iterator, which is expected to be empty
+        // at some later point.
         let _ = sys_hand.exec_wrapper.execution_helper.write().await.execute_code_read_iter.next().ok_or(
             HintError::SyscallError("No more storage writes available to replay".to_string().into_boxed_str()),
         )?;
