@@ -17,6 +17,7 @@ use snos::starkware_utils::commitment_tree::errors::TreeError;
 use snos::storage::dict_storage::DictStorage;
 use snos::storage::storage::{FactFetchingContext, HashFunctionType, StorageError};
 use snos::storage::storage_utils::{compiled_contract_class_cl2vm, deprecated_contract_class_api2vm};
+use snos::utils::felt_api2vm;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedCompiledClass;
 use starknet_api::hash::StarkFelt;
@@ -197,6 +198,16 @@ impl<'a> StarknetStateBuilder<'a> {
             Self::deploy_cairo1_contracts(self.cairo1_contracts, &mut dict_state_reader, &mut ffc)
                 .await
                 .expect("Failed to deploy Cairo 1 contracts in storage");
+
+        log::debug!("Contract deployment addresses:");
+        log::debug!("  cairo0 ({}):", cairo0_deployed_contracts.len());
+        for (name, deployment) in &cairo0_deployed_contracts {
+            log::debug!("    {}: {}", name, felt_api2vm(*deployment.address.0.key()));
+        }
+        log::debug!("  cairo1 ({}):", cairo1_deployed_contracts.len());
+        for (name, deployment) in &cairo1_deployed_contracts {
+            log::debug!("    {}: {}", name, felt_api2vm(*deployment.address.0.key()));
+        }
 
         if let Some(fee_config) = self.fee_config {
             Self::fund_accounts(&fee_config, &mut dict_state_reader, self.funds_per_address);
@@ -464,12 +475,18 @@ pub async fn initial_state_syscalls(
 ) -> StarknetTestState {
     let account_with_dummy_validate = load_cairo1_contract("account_with_dummy_validate");
     let test_contract = load_cairo1_contract("test_contract");
+    let test_recursive_storage = load_cairo1_contract("test_recursive_storage");
 
     StarknetStateBuilder::new(&block_context)
         .add_cairo1_contract(
             account_with_dummy_validate.0,
             account_with_dummy_validate.1,
             account_with_dummy_validate.2,
+        )
+        .add_cairo1_contract(
+            test_recursive_storage.0,
+            test_recursive_storage.1,
+            test_recursive_storage.2,
         )
         .add_cairo1_contract(test_contract.0, test_contract.1, test_contract.2)
         .set_default_balance(BALANCE, BALANCE)
