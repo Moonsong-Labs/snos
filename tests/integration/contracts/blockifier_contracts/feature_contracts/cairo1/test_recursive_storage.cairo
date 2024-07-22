@@ -9,25 +9,14 @@ trait GetSetSingleValue<TContractState> {
 // call into itself recursively
 #[starknet::contract]
 mod TestRecursiveStorageContract {
-    use box::BoxTrait;
-    use dict::Felt252DictTrait;
-    use ec::EcPointTrait;
     use starknet::ClassHash;
     use starknet::ContractAddress;
-    use starknet::get_execution_info;
     use starknet::StorageAddress;
-    use array::ArrayTrait;
-    use clone::Clone;
-    use core::bytes_31::POW_2_128;
-    use core::integer::bitwise;
-    use traits::Into;
-    use traits::TryInto;
     use starknet::{
-        eth_address::U256IntoEthAddress, EthAddress, secp256_trait::{Signature, is_valid_signature},
-        secp256r1::{Secp256r1Point, Secp256r1Impl}, eth_signature::verify_eth_signature,
-        info::{BlockInfo, SyscallResultTrait}, info::v2::{ExecutionInfo, TxInfo, ResourceBounds,},
+        info::SyscallResultTrait,
         syscalls
     };
+    use super::{GetSetSingleValueDispatcher, GetSetSingleValueDispatcherTrait};
 
     #[storage]
     struct Storage {
@@ -35,30 +24,76 @@ mod TestRecursiveStorageContract {
     }
 
     #[generate_trait]
-    // #[external(v0)]
-    impl TRSCImpl of TestRecursiveStorageContract {
+    #[abi(per_item)]
+    impl GetSetSingleValue of TestRecursiveStorageContract {
+        #[external(v0)]
         fn set_value(ref self: ContractState, value: felt252) {
             self.single_value.write(value);
         }
+        #[external(v0)]
         fn get_value(self: @ContractState) -> felt252 {
             self.single_value.read()
         }
-    }
-
-    #[external(v0)]
-    fn set_value_direct(ref self: ContractState, value: felt252) {
-        self.single_value.write(value);
-    }
-
-    #[external(v0)]
-    fn get_value_direct(self: @ContractState) -> felt252 {
-        self.single_value.read()
     }
 
     #[constructor]
     fn constructor(ref self: ContractState, initial_value: felt252) {
         self.single_value.write(initial_value);
     }
+
+    #[generate_trait]
+    impl InternalFunctions of InternalFunctionsTrait {
+
+        #[external(v0)]
+        fn set_value_direct(ref self: ContractState, value: felt252) {
+            self.single_value.write(value);
+        }
+
+        #[external(v0)]
+        fn get_value_direct(self: @ContractState) -> felt252 {
+            self.single_value.read()
+        }
+
+        #[external(v0)]
+        fn set_value_indirect(ref self: ContractState, addr: ContractAddress, value: felt252) {
+            GetSetSingleValueDispatcher {contract_address: addr}.set_value(value);
+        }
+
+        #[external(v0)]
+        fn get_value_indirect(ref self: ContractState, addr: ContractAddress) -> felt252 {
+            GetSetSingleValueDispatcher {contract_address: addr}.get_value()
+        }
+    }
+
+    #[external(v0)]
+    fn test_storage_replay_system(ref self: ContractState, addr: ContractAddress) {
+
+        // set value directly (within this same call)
+        self.set_value_direct(2);
+
+        // set value in a subcall -- this will execute out of order in SNOS
+        self.set_value_indirect(addr, 1);
+
+        // set value directly again
+        self.set_value_direct(42);
+
+        // TODO: this doesn't do anything for testing out-of-order storage replays since it occurs
+        //       within the same call
+        // get value directly, should be 42
+        let value = self.get_value_direct();
+        assert(value == 42, 'INVALID_FINAL_STATE_VALUE');
+    }
+
+    #[external(v0)]
+    fn expect_value(ref self: ContractState, expected: felt252) {
+        let value = self.get_value_direct();
+        assert(value == expected, 'UNEXPECTED_VALUE');
+    }
+
+
+
+
+
 
     #[external(v0)]
     fn test_storage_read_write(

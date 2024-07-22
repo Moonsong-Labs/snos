@@ -17,7 +17,7 @@ use snos::io::InternalTransaction;
 use snos::starknet::business_logic::fact_state::contract_class_objects::ContractClassLeaf;
 use snos::starknet::business_logic::fact_state::contract_state_objects::ContractState;
 use snos::starknet::business_logic::fact_state::test_shared_state::TestSharedState;
-use snos::starknet::starknet_storage::CommitmentInfo;
+use snos::starknet::starknet_storage::{CommitmentInfo, OsSingleStarknetStorage};
 use snos::starkware_utils::commitment_tree::base_types::{Height, TreeIndex};
 use snos::storage::dict_storage::DictStorage;
 use snos::storage::storage_utils::build_starknet_storage_async;
@@ -175,6 +175,16 @@ pub async fn os_hints(
         transactions,
         block_hash: Default::default(),
     };
+
+    /*
+    // fill in empty contract storage for other contracts that are accessed
+    for contract in contracts.keys() {
+        if ! contract_storage_map.contains_key(contract) {
+            log::debug!("Adding missing contract {} to contract map", contract);
+            contract_storage_map.insert(*contract, OsSingleStarknetStorage::empty());
+        }
+    }
+    */
 
     let execution_helper = ExecutionHelperWrapper::new(
         contract_storage_map,

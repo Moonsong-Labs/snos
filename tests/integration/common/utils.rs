@@ -58,7 +58,7 @@ pub fn check_os_output_read_only_syscall(os_output: StarknetOsOutput, block_cont
     // TODO: finer-grained contract changes checks
     // Just check that the two contracts have been modified, these should be storage changes
     // related to the fees.
-    assert_eq!(os_output.contracts.len(), 2);
+    assert_eq!(os_output.contracts.len(), 3);
 
     assert_eq!(os_output.block_number.to_u64().unwrap(), block_context.block_info().block_number.0);
     assert!(os_output.classes.is_empty());

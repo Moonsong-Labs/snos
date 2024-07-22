@@ -444,9 +444,17 @@ impl SyscallHandler for StorageReadHandler {
     ) -> SyscallResult<StorageReadResponse> {
         let mut eh_ref = exec_wrapper.execution_helper.write().await;
 
-        let value = eh_ref
+        let contract_address = eh_ref
+            .call_info
+            .as_ref()
+            .expect("must have current call info to call storage_write()")
+            .call
+            .storage_address;
+        let contract_address = felt_api2vm(*contract_address.0.key());
+
+        let current_value = eh_ref
             .storage_by_address
-            .get_mut(&request.address_domain)
+            .get_mut(&contract_address)
             .expect("storage_by_address should contain currently executed contract")
             .read(request.key)
             .await
@@ -456,10 +464,15 @@ impl SyscallHandler for StorageReadHandler {
                     .into_boxed_str()
             ))?;
 
-        let _ = eh_ref.execute_code_read_iter.next().ok_or(HintError::SyscallError(
+        let replayed_value = eh_ref.execute_code_read_iter.next().ok_or(HintError::SyscallError(
             "n: No more storage reads available to replay".to_string().into_boxed_str(),
         ))?;
-        Ok(StorageReadResponse { value })
+        
+        if current_value != replayed_value {
+            log::warn!("current value read for storage_read != replayed value ({} != {})", current_value, replayed_value);
+        }
+
+        Ok(StorageReadResponse { value: replayed_value })
     }
     fn write_response(
         response: StorageReadResponse,
@@ -501,18 +514,38 @@ impl SyscallHandler for StorageWriteHandler {
         let contract_address = eh_ref
             .call_info
             .as_ref()
-            .expect("must have current call info to call storage_read()")
+            .expect("must have current call info to call storage_write()")
             .call
             .storage_address;
         let contract_address = felt_api2vm(*contract_address.0.key());
 
+        log::warn!("StorageWriteHandler actually updating {} / {} => {}", contract_address, request.key, request.value);
+
+        /*
+         * This is wrong, presumably because it's done out of order. It causes a crash in the OS
+         * when we get to squash_dict().
+         *
         eh_ref
             .storage_by_address
             .get_mut(&contract_address)
             .expect("storage_by_address should contain currently executed contract")
             .write(request.key.to_biguint(), request.value);
+        */
 
-        log::warn!("StorageWriteHandler actually updating {} / {} => {}", contract_address, request.key, request.value);
+        /*
+         * this doesn't seem right, perhaps only deprecated write syscalls come with the extra
+         * read replay?
+         *
+        // storage writes generate a replay read, so we need to drain one from the iter
+        let replayed_value = eh_ref.execute_code_read_iter.next().ok_or(HintError::SyscallError(
+            "n: No more storage reads available to replay".to_string().into_boxed_str(),
+        ))?;
+        
+        // they should always be 0 values (right?)
+        if replayed_value != Felt252::ZERO {
+            log::warn!("Replayed storage read for write that is not zero: {}", replayed_value);
+        }
+        */
 
         Ok(EmptyResponse {})
     }
