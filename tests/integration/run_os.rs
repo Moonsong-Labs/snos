@@ -35,7 +35,7 @@ use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
 use starknet_api::transaction::{Calldata, ContractAddressSalt, TransactionSignature, TransactionVersion};
 
-use crate::common::state::{load_cairo0_contract, Cairo0Contract, DeprecatedContractDeployment};
+use crate::common::state::{load_cairo0_contract, Cairo0Contract, DeployedDeprecatedContract};
 use crate::common::transaction_utils::execute_txs_and_run_os;
 use crate::declare_txn_tests::default_testing_resource_bounds;
 
@@ -76,7 +76,7 @@ macro_rules! build_invoke_tx {
     }};
 }
 
-type ContractMap = HashMap<String, DeprecatedContractDeployment>;
+type ContractMap = HashMap<String, DeployedDeprecatedContract>;
 
 fn get_contract_address_by_index(contracts: &[ContractAddress], index: usize) -> ContractAddress {
     *contracts.get(index).expect("Index out of bounds")
@@ -218,15 +218,7 @@ async fn load_contracts(address_generator: &mut StdRng) -> HashMap<String, Cairo
 
     contract_names
         .iter()
-        .map(|&name| {
-            (
-                name.to_string(),
-                Cairo0Contract {
-                    deprecated_compiled_class: load_cairo0_contract(name).1,
-                    address: address_generator.gen::<u32>().into(),
-                },
-            )
-        })
+        .map(|&name| (name.to_string(), Cairo0Contract { deprecated_compiled_class: load_cairo0_contract(name).1 }))
         .collect()
 }
 
