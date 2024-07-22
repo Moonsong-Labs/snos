@@ -6,5 +6,6 @@ mod l1_handler_txn_tests;
 mod os;
 mod pie;
 mod run_os;
+mod run_os_fixed;
 mod sharp;
 mod syscalls_tests;

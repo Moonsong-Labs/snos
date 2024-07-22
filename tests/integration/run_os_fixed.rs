@@ -8,7 +8,7 @@ use blockifier::test_utils::declare::declare_tx;
 use blockifier::test_utils::deploy_account::deploy_account_tx;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::invoke::invoke_tx;
-use blockifier::test_utils::{create_calldata, NonceManager};
+use blockifier::test_utils::{create_calldata, NonceManager, BALANCE};
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::test_utils::{account_invoke_tx, calculate_class_info_for_testing, max_fee};
@@ -17,14 +17,14 @@ use blockifier::transaction::transactions::{ExecutableTransaction, L1HandlerTran
 use blockifier::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use snos::crypto::pedersen::PedersenHash;
 use snos::execution::helper::GenCallIter;
 use snos::io::output::StarknetOsOutput;
 use snos::starknet::business_logic::fact_state::state::SharedState;
-use snos::starknet::business_logic::utils::write_deprecated_compiled_class_fact;
+use snos::starknet::business_logic::utils::{write_class_facts, write_deprecated_compiled_class_fact};
 use snos::storage::dict_storage::DictStorage;
-use snos::storage::storage::FactFetchingContext;
+use snos::storage::storage::{FactFetchingContext, HashFunctionType, Storage, StorageError};
 use snos::storage::storage_utils::{deprecated_contract_class_api2vm, unpack_blockifier_state_async};
 use snos::utils::felt_api2vm;
 use starknet_api::core::{
@@ -35,7 +35,11 @@ use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
 use starknet_api::transaction::{Calldata, ContractAddressSalt, TransactionSignature, TransactionVersion};
 
-use crate::common::state::{init_logging, load_cairo0_contract, Cairo0Contract, DeprecatedContractDeployment};
+use crate::common::block_context;
+use crate::common::state::{
+    init_logging, load_cairo0_contract, Cairo0Contract, Cairo1Contract, DeprecatedContractDeployment,
+    StarknetStateBuilder, StarknetTestState,
+};
 use crate::common::transaction_utils::execute_txs_and_run_os;
 use crate::declare_txn_tests::default_testing_resource_bounds;
 
@@ -140,9 +144,83 @@ fn deploy_contract(
     Ok(contract_address)
 }
 
+#[fixture]
+/// A minimal test state that declares the contracts that are deployed later.
+///
+/// For some reason the Python integration never declares contracts manually. The test appears
+/// to be incomplete in that regard.
+pub async fn initial_state_cairo0(
+    block_context: BlockContext,
+    #[from(init_logging)] _logging: (),
+) -> StarknetTestState {
+    let account_with_dummy_validate = load_cairo0_contract("account_with_dummy_validate");
+    let test_contract = load_cairo0_contract("test_contract");
+
+    StarknetStateBuilder::new(&block_context)
+        .add_cairo0_contract(account_with_dummy_validate.0, account_with_dummy_validate.1)
+        .add_cairo0_contract(test_contract.0, test_contract.1)
+        .set_default_balance(BALANCE, BALANCE)
+        .build()
+        .await
+}
+
+/// Runs the given transactions on the given initial shared state.
+/// Returns the resulting execution infos, and shared state.
+async fn run_business_logic_for_os_test<S, H>(
+    txs: Vec<Transaction>,
+    initial_state: SharedState<S, H>,
+    block_context: &BlockContext,
+) -> Result<(Vec<TransactionExecutionInfo>, SharedState<S, H>), StorageError>
+where
+    S: Storage + Send + Sync,
+    H: HashFunctionType + Send + Sync,
+{
+    // for cairo0_contract in cairo0_contracts {
+    //     write_deprecated_compiled_class_fact(cairo0_contract.deprecated_compiled_class.clone(),
+    // ffc).await?; }
+    //
+    // for cairo1_contract in cairo1_contracts {
+    //     write_class_facts(cairo1_contract.contract_class.clone(),
+    // cairo1_contract.compiled_contract_class.clone(), ffc)         .await?;
+    // }
+
+    let mut cached_state = CachedState::from(initial_state);
+
+    let execution_infos: Vec<_> =
+        txs.into_iter().map(|tx| execute_transaction(tx, &mut cached_state, block_context)).collect();
+
+    validate_execution_infos(&execution_infos);
+
+    let (_, final_state) = unpack_blockifier_state_async(cached_state).await.expect("Failed to create final state");
+
+    Ok((execution_infos, final_state))
+}
+
 #[rstest]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn run_os_tests(#[from(init_logging)] _logging: ()) {
+async fn run_os_tests_fixed(#[from(init_logging)] _logging: ()) {
+    let mut nonce_manager = NonceManager::default();
+    let block_context = BlockContext::create_for_account_testing();
+
+    let mut ffc: FactFetchingContext<_, PedersenHash> = FactFetchingContext::new(DictStorage::default());
+
+    let contract_classes = load_contracts_2(&mut ffc).await.unwrap();
+
+    let dummy_token = contract_classes.get("token_for_testing").unwrap();
+    let dummy_account = contract_classes.get("account_with_dummy_validate").unwrap();
+
+    let (deploy_token_tx, deploy_account_tx, fund_adsccount_tx) =
+        create_initial_transactions(&mut nonce_manager, dummy_token, dummy_account).await;
+    let init_txs = vec![deploy_token_tx];
+
+    let initial_state = SharedState::empty(ffc).await.unwrap();
+
+    let (_, state) = run_business_logic_for_os_test(init_txs, initial_state, &block_context).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn run_os_tests() {
     let mut nonce_manager = NonceManager::default();
     let block_context = BlockContext::create_for_account_testing();
     let mut address_generator = StdRng::seed_from_u64(INITIAL_SEED);
@@ -172,38 +250,41 @@ async fn run_os_tests(#[from(init_logging)] _logging: ()) {
     let dummy_token = deployed_contracts.get("token_for_testing").unwrap();
     let dummy_account = deployed_contracts.get("account_with_dummy_validate").unwrap();
 
-    let (deploy_token_tx, deploy_account_tx, fund_account_tx) =
-        create_initial_transactions(&mut nonce_manager, dummy_token, dummy_account).await;
-
-    let init_txns: Vec<Transaction> =
-        vec![deploy_token_tx, fund_account_tx, deploy_account_tx].into_iter().map(Into::into).collect();
-
-    let execution_infos: Vec<_> =
-        init_txns.into_iter().map(|tx| execute_transaction(tx, &mut cached_state, &block_context)).collect();
-
-    validate_execution_infos(&execution_infos);
-
-    let mut tx_contracts: Vec<_> = vec![];
-
-    let txns = prepare_extensive_os_test_params(
-        &deployed_contracts,
-        &mut nonce_manager,
-        dummy_account.address,
-        dummy_account.address,
-        &mut tx_contracts,
-        &block_context,
-    )
-    .await;
-
-    let (_, shared_state) = unpack_blockifier_state_async(cached_state).await.unwrap();
-    let cached_state = CachedState::from(shared_state);
-
-    let (_pie, os_output) =
-        execute_txs_and_run_os(cached_state, block_context, txns, compiled_contract_classes, Default::default())
-            .await
-            .unwrap();
-
-    validate_os_output(&os_output, &tx_contracts);
+    todo!();
+    // let (deploy_token_tx, deploy_account_tx, fund_account_tx) =
+    //     create_initial_transactions(&mut nonce_manager, dummy_token, dummy_account).await;
+    //
+    // let init_txns: Vec<Transaction> =
+    //     vec![deploy_token_tx, fund_account_tx,
+    // deploy_account_tx].into_iter().map(Into::into).collect();
+    //
+    // let execution_infos: Vec<_> =
+    //     init_txns.into_iter().map(|tx| execute_transaction(tx, &mut cached_state,
+    // &block_context)).collect();
+    //
+    // validate_execution_infos(&execution_infos);
+    //
+    // let mut tx_contracts: Vec<_> = vec![];
+    //
+    // let txns = prepare_extensive_os_test_params(
+    //     &deployed_contracts,
+    //     &mut nonce_manager,
+    //     dummy_account.address,
+    //     dummy_account.address,
+    //     &mut tx_contracts,
+    //     &block_context,
+    // )
+    // .await;
+    //
+    // let (_, shared_state) = unpack_blockifier_state_async(cached_state).await.unwrap();
+    // let cached_state = CachedState::from(shared_state);
+    //
+    // let (_pie, os_output) =
+    //     execute_txs_and_run_os(cached_state, block_context, txns, compiled_contract_classes,
+    // Default::default())         .await
+    //         .unwrap();
+    //
+    // validate_os_output(&os_output, &tx_contracts);
 }
 
 async fn load_contracts(address_generator: &mut StdRng) -> HashMap<String, Cairo0Contract> {
@@ -228,6 +309,41 @@ async fn load_contracts(address_generator: &mut StdRng) -> HashMap<String, Cairo
             )
         })
         .collect()
+}
+
+struct LoadedCairo0Contract {
+    deprecated_compiled_class: DeprecatedCompiledClass,
+    class_hash: ClassHash,
+}
+
+async fn load_contracts_2<S, H>(
+    ffc: &mut FactFetchingContext<S, H>,
+) -> Result<HashMap<String, LoadedCairo0Contract>, StorageError>
+where
+    S: Storage,
+    H: HashFunctionType,
+{
+    let contract_names = [
+        "token_for_testing",
+        "dummy_token",
+        "account_with_dummy_validate",
+        "test_contract_run_os",
+        "delegate_proxy",
+        "test_contract2",
+    ];
+
+    let mut contracts = HashMap::new();
+
+    for contract_name in contract_names {
+        let deprecated_compiled_class = load_cairo0_contract(contract_name).1;
+        let class_hash = write_deprecated_compiled_class_fact(deprecated_compiled_class.clone(), ffc).await?;
+        let class_hash = ClassHash(class_hash.try_into().expect("class hash does not fit in a felt"));
+        println!("class_hash: {}", class_hash.to_string());
+
+        contracts.insert(contract_name.to_string(), LoadedCairo0Contract { deprecated_compiled_class, class_hash });
+    }
+
+    Ok(contracts)
 }
 
 async fn initialize_contracts(
@@ -261,8 +377,8 @@ async fn initialize_contracts(
 
 async fn create_initial_transactions(
     nonce_manager: &mut NonceManager,
-    dummy_token: &DeprecatedContractDeployment,
-    dummy_account: &DeprecatedContractDeployment,
+    dummy_token: &LoadedCairo0Contract,
+    dummy_account: &LoadedCairo0Contract,
 ) -> (Transaction, Transaction, Transaction) {
     let deploy_token_tx_args = deploy_account_tx_args! {
         class_hash: dummy_token.class_hash,
@@ -292,16 +408,20 @@ async fn create_initial_transactions(
     (deploy_token_tx.into(), deploy_account_tx.into(), fund_account_tx.into())
 }
 
-fn execute_transaction(
+fn execute_transaction<S, H>(
     tx: Transaction,
-    cached_state: &mut CachedState<SharedState<DictStorage, PedersenHash>>,
+    cached_state: &mut CachedState<SharedState<S, H>>,
     block_context: &BlockContext,
-) -> TransactionExecutionInfo {
+) -> TransactionExecutionInfo
+where
+    S: Storage + Send,
+    H: HashFunctionType + Sync + Send,
+{
     let tx_result = tx.execute(cached_state, block_context, true, true);
     match tx_result {
         Err(e) => {
             log::error!("Transaction failed in blockifier: {}", e);
-            panic!("A transaction failed during execution");
+            panic!("A transaction failed during execution: {}", e);
         }
         Ok(info) => {
             if info.is_reverted() {
