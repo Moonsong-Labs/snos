@@ -27,7 +27,10 @@ use snos::utils::felt_api2vm;
 use starknet_api::core::{calculate_contract_address, ChainId, ContractAddress, EntryPointSelector};
 use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
-use starknet_api::transaction::{Calldata, ContractAddressSalt, Fee, TransactionSignature, TransactionVersion};
+use starknet_api::transaction::{
+    Calldata, ContractAddressSalt, DeployAccountTransaction, Fee, InvokeTransaction, TransactionHash,
+    TransactionSignature, TransactionVersion,
+};
 
 use crate::common::block_context;
 use crate::common::state::{
@@ -72,6 +75,26 @@ macro_rules! build_invoke_tx {
 
         Transaction::AccountTransaction(AccountTransaction::Invoke(invoke_tx(tx_args)))
     }};
+}
+
+struct InitialTxs {
+    deploy_token_tx: blockifier::transaction::transactions::DeployAccountTransaction,
+    deploy_account_tx: blockifier::transaction::transactions::DeployAccountTransaction,
+    fund_account_tx: blockifier::transaction::transactions::InvokeTransaction,
+}
+
+impl InitialTxs {
+    fn fee_token_address(&self) -> ContractAddress {
+        self.deploy_token_tx.contract_address
+    }
+
+    fn dummy_account_address(&self) -> ContractAddress {
+        self.deploy_account_tx.contract_address
+    }
+
+    fn txs(self) -> Vec<Transaction> {
+        vec![self.deploy_token_tx.into(), self.fund_account_tx.into(), self.deploy_account_tx.into()]
+    }
 }
 
 async fn create_initial_transactions(
@@ -144,6 +167,10 @@ async fn prepare_extensive_os_test_params(
     let test_contract1_address = deployed_txs_addresses[0];
     let test_contract2_address = deployed_txs_addresses[1];
     let test_contract3_address = deployed_txs_addresses[2];
+
+    log::debug!("test contract 1 address: {}", test_contract1_address.to_string());
+    log::debug!("test contract 2 address: {}", test_contract2_address.to_string());
+    log::debug!("test contract 3 address: {}", test_contract3_address.to_string());
 
     txs.push(build_invoke_tx!(
         deploy_account_address,
@@ -239,6 +266,8 @@ async fn prepare_extensive_os_test_params(
     .unwrap();
     deployed_txs_addresses.push(delegate_proxy_address);
 
+    log::debug!("delegate proxy address: {}", delegate_proxy_address.to_string());
+
     txs.push(build_invoke_tx!(
         deploy_account_address,
         nonce_manager,
@@ -314,22 +343,26 @@ async fn prepare_extensive_os_test_params(
         vec![100u128.into(), 200u128.into()],
     ));
 
-    let tx_args = invoke_tx_args! {
-        sender_address: deploy_account_address,
-        calldata: create_calldata(test_contract1_address,
-        "test_call_contract",
-        &vec![
-            delegate_proxy_address.into(),
-            selector_from_name("test_get_tx_info").0.into(),
-            1u128.into(),
-            (*deploy_account_address.0).into(),
-        ]),
-        nonce: nonce_manager.next(deploy_account_address),
-        signature: TransactionSignature(vec![100u128.into()]),
-        max_fee: Fee(1267650600228229401496703205376u128),
+    let inner_invoke_tx = {
+        let tx_args = invoke_tx_args! {
+            sender_address: deploy_account_address,
+            calldata: create_calldata(test_contract1_address,
+            "test_call_contract",
+            &vec![
+                delegate_proxy_address.into(),
+                selector_from_name("test_get_tx_info").0.into(),
+                1u128.into(),
+                (*deploy_account_address.0).into(),
+            ]),
+            nonce: nonce_manager.next(deploy_account_address),
+            signature: TransactionSignature(vec![100u128.into()]),
+            max_fee: Fee(0x10000000000000000000000000u128),     // 2**100
+        };
+        let mut tx = invoke_tx(tx_args);
+        tx.tx_hash = TransactionHash(stark_felt!("0x19c90daecc4e3ed29743b0331024b3014b9f2c4620ee7ec441b4a7ec330583"));
+        tx
     };
-
-    txs.push(Transaction::AccountTransaction(AccountTransaction::Invoke(invoke_tx(tx_args))));
+    txs.push(Transaction::AccountTransaction(AccountTransaction::Invoke(inner_invoke_tx)));
 
     let test_contract2 = cairo0_contracts.get("test_contract2").unwrap();
 
@@ -554,6 +587,9 @@ async fn run_os_tests(#[future] initial_state_full_itests: StarknetTestState) {
 
     let ((fee_token_address, dummy_account_address), (deploy_token_tx, deploy_account_tx, fund_account_tx)) =
         create_initial_transactions(&mut nonce_manager, dummy_token, dummy_account).await;
+
+    log::debug!("fee token address: {}", fee_token_address.to_string());
+    log::debug!("dummy token address: {}", dummy_account_address.to_string());
 
     let block_context = build_block_context(chain_id, fee_token_address);
 
