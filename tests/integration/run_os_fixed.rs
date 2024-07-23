@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use blockifier::abi::abi_utils::selector_from_name;
-use blockifier::context::BlockContext;
+use blockifier::block::BlockInfo;
+use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::CachedState;
 use blockifier::test_utils::declare::declare_tx;
 use blockifier::test_utils::deploy_account::deploy_account_tx;
@@ -13,6 +14,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::test_utils::{account_invoke_tx, calculate_class_info_for_testing, max_fee};
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transactions::{ExecutableTransaction, L1HandlerTransaction};
+use blockifier::versioned_constants::VersionedConstants;
 use blockifier::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 use rstest::{fixture, rstest};
 use snos::crypto::pedersen::PedersenHash;
@@ -22,10 +24,10 @@ use snos::starknet::business_logic::fact_state::state::SharedState;
 use snos::storage::dict_storage::DictStorage;
 use snos::storage::storage_utils::{deprecated_contract_class_api2vm, unpack_blockifier_state_async};
 use snos::utils::felt_api2vm;
-use starknet_api::core::{calculate_contract_address, ContractAddress, EntryPointSelector};
+use starknet_api::core::{calculate_contract_address, ChainId, ContractAddress, EntryPointSelector};
 use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
-use starknet_api::transaction::{Calldata, ContractAddressSalt, TransactionSignature, TransactionVersion};
+use starknet_api::transaction::{Calldata, ContractAddressSalt, Fee, TransactionSignature, TransactionVersion};
 
 use crate::common::block_context;
 use crate::common::state::{
@@ -76,7 +78,7 @@ async fn create_initial_transactions(
     nonce_manager: &mut NonceManager,
     dummy_token: &DeclaredDeprecatedContract,
     dummy_account: &DeclaredDeprecatedContract,
-) -> (ContractAddress, (Transaction, Transaction, Transaction)) {
+) -> ((ContractAddress, ContractAddress), (Transaction, Transaction, Transaction)) {
     let deploy_token_tx_args = deploy_account_tx_args! {
         class_hash: dummy_token.class_hash,
         version: TransactionVersion::ONE,
@@ -102,7 +104,10 @@ async fn create_initial_transactions(
     };
     let fund_account_tx = AccountTransaction::Invoke(invoke_tx(fund_account_tx_args));
 
-    (deploy_account_address, (deploy_token_tx.into(), deploy_account_tx.into(), fund_account_tx.into()))
+    (
+        (fee_token_address, deploy_account_address),
+        (deploy_token_tx.into(), deploy_account_tx.into(), fund_account_tx.into()),
+    )
 }
 
 async fn prepare_extensive_os_test_params(
@@ -321,7 +326,7 @@ async fn prepare_extensive_os_test_params(
         ]),
         nonce: nonce_manager.next(deploy_account_address),
         signature: TransactionSignature(vec![100u128.into()]),
-        max_fee: max_fee(),
+        max_fee: Fee(1267650600228229401496703205376u128),
     };
 
     txs.push(Transaction::AccountTransaction(AccountTransaction::Invoke(invoke_tx(tx_args))));
@@ -385,20 +390,19 @@ async fn prepare_extensive_os_test_params(
     txs
 }
 
-fn load_contracts() -> HashMap<String, Cairo0Contract> {
-    let contract_names = [
-        "token_for_testing",
-        "dummy_token",
-        "account_with_dummy_validate",
-        "test_contract_run_os",
-        "delegate_proxy",
-        "test_contract2",
-    ];
+fn build_block_context(chain_id: ChainId, fee_token_address: ContractAddress) -> BlockContext {
+    let block_info = BlockInfo::create_for_testing();
+    let versioned_constants = VersionedConstants::create_for_account_testing();
 
-    contract_names
-        .iter()
-        .map(|&name| (name.to_string(), Cairo0Contract { deprecated_compiled_class: load_cairo0_contract(name).1 }))
-        .collect()
+    let chain_info = ChainInfo {
+        chain_id,
+        fee_token_addresses: FeeTokenAddresses {
+            strk_fee_token_address: fee_token_address,
+            eth_fee_token_address: fee_token_address,
+        },
+    };
+
+    BlockContext::new_unchecked(&block_info, &chain_info, &versioned_constants)
 }
 
 fn add_declare_and_deploy_contract_txs(
@@ -542,14 +546,16 @@ pub async fn initial_state_full_itests(
 async fn run_os_tests(#[future] initial_state_full_itests: StarknetTestState) {
     let initial_state = initial_state_full_itests.await;
 
+    let chain_id = ChainId("SN_GOERLI".to_string());
     let mut nonce_manager = NonceManager::default();
-    let block_context = BlockContext::create_for_account_testing();
 
     let dummy_token = initial_state.declared_cairo0_contracts.get("token_for_testing").unwrap();
     let dummy_account = initial_state.declared_cairo0_contracts.get("account_with_dummy_validate").unwrap();
 
-    let (dummy_account_address, (deploy_token_tx, deploy_account_tx, fund_account_tx)) =
+    let ((fee_token_address, dummy_account_address), (deploy_token_tx, deploy_account_tx, fund_account_tx)) =
         create_initial_transactions(&mut nonce_manager, dummy_token, dummy_account).await;
+
+    let block_context = build_block_context(chain_id, fee_token_address);
 
     let init_txns: Vec<Transaction> =
         vec![deploy_token_tx, fund_account_tx, deploy_account_tx].into_iter().map(Into::into).collect();
@@ -562,30 +568,30 @@ async fn run_os_tests(#[future] initial_state_full_itests: StarknetTestState) {
         init_txns.into_iter().map(|tx| execute_transaction(tx, &mut cached_state, &block_context)).collect();
     validate_execution_infos(&execution_infos);
 
-    // let mut tx_contracts = vec![];
-    //
-    // let txs = prepare_extensive_os_test_params(
-    //     &initial_state.declared_cairo0_contracts,
-    //     &mut nonce_manager,
-    //     dummy_account_address,
-    //     dummy_account_address,
-    //     &mut tx_contracts,
-    //     &block_context,
-    // )
-    // .await;
-    //
-    // let (_, shared_state) = unpack_blockifier_state_async(cached_state).await.unwrap();
-    // let cached_state = CachedState::from(shared_state);
-    //
-    // let (_pie, os_output) = execute_txs_and_run_os(
-    //     cached_state,
-    //     block_context,
-    //     txs,
-    //     initial_state.cairo0_compiled_classes,
-    //     Default::default(),
-    // )
-    // .await
-    // .unwrap();
-    //
-    // validate_os_output(&os_output, &tx_contracts);
+    let mut tx_contracts = vec![];
+
+    let txs = prepare_extensive_os_test_params(
+        &initial_state.declared_cairo0_contracts,
+        &mut nonce_manager,
+        dummy_account_address,
+        dummy_account_address,
+        &mut tx_contracts,
+        &block_context,
+    )
+    .await;
+
+    let (_, shared_state) = unpack_blockifier_state_async(cached_state).await.unwrap();
+    let cached_state = CachedState::from(shared_state);
+
+    let (_pie, os_output) = execute_txs_and_run_os(
+        cached_state,
+        block_context,
+        txs,
+        initial_state.cairo0_compiled_classes,
+        Default::default(),
+    )
+    .await
+    .unwrap();
+
+    validate_os_output(&os_output, &tx_contracts);
 }
