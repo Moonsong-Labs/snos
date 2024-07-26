@@ -1,12 +1,13 @@
+use blockifier::abi::abi_utils::selector_from_name;
 use blockifier::context::BlockContext;
 use blockifier::invoke_tx_args;
-use blockifier::test_utils::{create_calldata, NonceManager};
+use blockifier::test_utils::NonceManager;
 use blockifier::transaction::test_utils;
 use blockifier::transaction::test_utils::max_fee;
 use rstest::rstest;
 use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
-use starknet_api::transaction::{Fee, TransactionVersion};
+use starknet_api::transaction::{Calldata, Fee, TransactionVersion};
 
 use crate::common::block_context;
 use crate::common::state::{initial_state_cairo1, StarknetTestState};
@@ -22,21 +23,32 @@ async fn invoke_txn_multiple_calls(
 ) {
     let initial_state = initial_state_cairo1.await;
 
-    let tx_version = TransactionVersion::THREE;
     let mut nonce_manager = NonceManager::default();
 
     let sender_address = initial_state.deployed_cairo1_contracts.get("account_with_dummy_validate").unwrap().address;
     let contract_address = initial_state.deployed_cairo0_contracts.get("test_contract").unwrap().address;
 
+    let entrypoint_selector = selector_from_name("return_result").0;
+    let calldata = Calldata(
+        vec![
+            stark_felt!(2u64),
+            *contract_address.key(),
+            entrypoint_selector,
+            stark_felt!(1u64),
+            stark_felt!(42u64),
+            *contract_address.key(),
+            entrypoint_selector,
+            stark_felt!(1u64),
+            stark_felt!(300u64),
+        ]
+        .into(),
+    );
+
     let return_result_tx = test_utils::account_invoke_tx(invoke_tx_args! {
         max_fee,
         sender_address,
-        calldata: create_calldata(
-            contract_address,
-            "return_result",
-            &[stark_felt!(2_u8)],
-        ),
-        version: tx_version,
+        calldata,
+        version: TransactionVersion::THREE,
         nonce: nonce_manager.next(sender_address),
     });
 
