@@ -25,7 +25,7 @@ pub fn get_deprecated_compiled_class(contract_rel_path: &Path) -> DeprecatedComp
 
 pub fn get_compiled_sierra_class(contract_rel_path: &Path) -> ContractClass {
     let content = read_contract(contract_rel_path);
-    serde_json::from_slice(&content).unwrap_or_else(|e| panic!("Failed to load deprecated compiled class: {e}"))
+    serde_json::from_slice(&content).unwrap_or_else(|e| panic!("Failed to load Sierra class: {e}"))
 }
 
 /// Compiles a Sierra class to CASM.
