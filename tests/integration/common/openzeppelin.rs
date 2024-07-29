@@ -6,7 +6,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use crate::common::contract_fixtures::load_cairo1_contract;
 
 fn get_contract_path(contract_name: &str) -> PathBuf {
-    let filename = format!("{contract_name}.json");
+    let filename = format!("{contract_name}.sierra");
     Path::new("openzeppelin").join("compiled").join(filename)
 }
 

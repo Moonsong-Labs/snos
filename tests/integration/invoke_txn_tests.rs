@@ -48,15 +48,15 @@ async fn invoke_txn_multiple_calls(
 
     let entrypoint_selector = selector_from_name("return_result").0;
     let return_result_calldata = vec![
-        stark_felt!(2u64),
+        stark_felt!(1u64),
         *contract_address.key(),
         entrypoint_selector,
         stark_felt!(1u64),
         stark_felt!(42u64),
-        *contract_address.key(),
-        entrypoint_selector,
-        stark_felt!(1u64),
-        stark_felt!(300u64),
+        // *contract_address.key(),
+        // entrypoint_selector,
+        // stark_felt!(1u64),
+        // stark_felt!(300u64),
     ];
 
     let calldata = create_calldata(account_address, "__execute__", &return_result_calldata);
