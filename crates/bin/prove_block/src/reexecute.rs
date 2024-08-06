@@ -14,6 +14,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, Nonce, PatriciaKey};
 use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
 use starknet_os::utils::{execute_coroutine, felt_api2vm, felt_vm2api};
+use starknet_replay::rpc_state_reader::AsyncRpcStateReader;
 
 /// A StateReader impl which is backed by RPC
 pub(crate) struct RpcStateReader {
@@ -107,7 +108,7 @@ impl StateReader for RpcStateReader {
 
 /// Reexecute the given transactions through Blockifier
 pub fn reexecute_transactions_with_blockifier(
-    mut state: CachedState<RpcStateReader>,
+    mut state: CachedState<AsyncRpcStateReader<HttpTransport>>,
     block_context: &BlockContext,
     txs: Vec<Transaction>,
 ) -> Result<Vec<TransactionExecutionInfo>, Box<dyn Error>> {
