@@ -229,7 +229,11 @@ pub(crate) async fn get_class_proofs(
 // Utility to extract all contract address in a nested call structure. Any given call can have
 // nested calls, creating a tree structure of calls, so this fn traverses this structure and
 // returns a flat list of all contracts encountered along the way.
-pub(crate) fn process_function_invocations(inv: FunctionInvocation, contracts: &mut HashSet<Felt252>, nesting_level: u64) {
+pub(crate) fn process_function_invocations(
+    inv: FunctionInvocation,
+    contracts: &mut HashSet<Felt252>,
+    nesting_level: u64,
+) {
     log::info!("process_function_inv: contract: {:x} at level {}", inv.contract_address, nesting_level);
     contracts.insert(inv.contract_address);
     for call in inv.calls {

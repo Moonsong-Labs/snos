@@ -423,12 +423,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let generic_cc = generic_sierra_cc.compile()?;
 
-            let (_contract_class_hash, compiled_contract_hash) = write_class_facts(
-                generic_sierra_cc,
-                generic_cc.clone(),
-                &mut initial_state.ffc_for_class_hash,
-            )
-            .await?;
+            let (_contract_class_hash, compiled_contract_hash) =
+                write_class_facts(generic_sierra_cc, generic_cc.clone(), &mut initial_state.ffc_for_class_hash).await?;
 
             class_hash_to_compiled_class_hash.insert(class_hash, compiled_contract_hash.into());
             compiled_classes.insert(compiled_contract_hash.into(), generic_cc.clone());
