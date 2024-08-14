@@ -487,8 +487,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect();
 
     log::debug!("class_hash_to_compiled_class_hash ({}):", class_hash_to_compiled_class_hash.len());
-    for (ch, cch) in &class_hash_to_compiled_class_hash {
-        log::debug!("    0x{:x} => 0x{:x}", ch, cch);
+    for (class_hash, compiled_class_hash) in &class_hash_to_compiled_class_hash {
+        log::debug!("    0x{:x} => 0x{:x}", class_hash, compiled_class_hash);
     }
 
     // TODO: ugly clone here
