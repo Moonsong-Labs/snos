@@ -428,7 +428,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             log::debug!("class_hash (from RPC): {:x?}", class_hash);
             log::debug!("class_hash (computed): {:x?}", generic_sierra_cc.class_hash()?);
 
-            // TODO: it seems that this ends up computing the wrong class hash...
             let (contract_class_hash, compiled_contract_hash) = write_class_facts(
                 generic_sierra_cc,
                 generic_cc.clone(),
