@@ -222,10 +222,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             _ => unimplemented!("process other txn traces"),
         }
     }
-    log::info!("Contract subcalls:");
-    for addr in &contracts_subcalled {
-        log::info!("    {:x}", addr);
-    }
 
     let previous_storage_proofs = get_storage_proofs(
         &pathfinder_client,
