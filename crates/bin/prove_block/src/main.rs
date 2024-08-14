@@ -18,7 +18,6 @@ use starknet::providers::jsonrpc::HttpTransport;
 use starknet::providers::{JsonRpcClient, Provider, Url};
 use starknet_os::config::{StarknetGeneralConfig, StarknetOsConfig, SN_SEPOLIA, STORED_BLOCK_HASH_BUFFER};
 use starknet_os::crypto::pedersen::PedersenHash;
-use starknet_os::crypto::poseidon::PoseidonHash;
 use starknet_os::error::SnOsError::Runner;
 use starknet_os::execution::helper::{ContractStorageMap, ExecutionHelperWrapper};
 use starknet_os::io::input::StarknetOsInput;
@@ -431,7 +430,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let (contract_class_hash, compiled_contract_hash) = write_class_facts(
                 generic_sierra_cc,
                 generic_cc.clone(),
-                &mut initial_state.ffc.clone_with_different_hash::<PoseidonHash>(),
+                &mut initial_state.ffc_for_class_hash,
             )
             .await?;
 
