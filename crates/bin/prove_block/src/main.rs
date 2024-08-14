@@ -439,6 +439,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // query storage proofs for each accessed contract
     let class_hashes: Vec<&Felt252> = class_hash_to_compiled_class_hash.keys().collect();
+    // TODO: we fetch proofs here for block-1, but we probably also need to fetch at the current
+    //       block, likely for contracts that are deployed in this block
     let class_proofs = get_class_proofs(&pathfinder_client, &args.rpc_provider, block_number - 1, &class_hashes[..])
         .await
         .expect("Failed to fetch class proofs");
