@@ -423,11 +423,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let generic_cc = generic_sierra_cc.compile()?;
 
-            log::debug!("============================");
-            log::debug!("class_hash (from RPC): {:x?}", class_hash);
-            log::debug!("class_hash (computed): {:x?}", generic_sierra_cc.class_hash()?);
-
-            let (contract_class_hash, compiled_contract_hash) = write_class_facts(
+            let (_contract_class_hash, compiled_contract_hash) = write_class_facts(
                 generic_sierra_cc,
                 generic_cc.clone(),
                 &mut initial_state.ffc_for_class_hash,
@@ -436,21 +432,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             class_hash_to_compiled_class_hash.insert(class_hash, compiled_contract_hash.into());
             compiled_classes.insert(compiled_contract_hash.into(), generic_cc.clone());
-
-            log::debug!(
-                "Computed class_hash => compiled_class_hash: {:x?} => {:x?}",
-                contract_class_hash,
-                compiled_contract_hash
-            );
-
-            // let sierra_cc_hash = generic_sierra_cc.class_hash()?;
-            let sierra_cc_hash = generic_cc.class_hash()?;
-            log::debug!("sierra_cc_hash: {:x?}", sierra_cc_hash);
-
-            let class_hash_as_snos_hash: starknet_os_types::hash::Hash = class_hash.into();
-            if contract_class_hash != class_hash_as_snos_hash {
-                log::warn!("FFC computed different hash ({:x?}) than expected ({:?})", contract_class_hash, class_hash);
-            }
         } else {
             log::warn!("No class hash available for contract {}", contract_address);
         };
