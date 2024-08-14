@@ -340,7 +340,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             transaction.class_hash = Some(*class_hash);
         } else {
             // TODO: are there txn types which wouldn't have a sender address?
-            log::warn!("Found transaction without sender_address");
+            unimplemented!("Found transaction without sender_address");
         }
     }
 
