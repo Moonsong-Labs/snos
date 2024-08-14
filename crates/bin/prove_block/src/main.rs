@@ -10,9 +10,9 @@ use reexecute::{reexecute_transactions_with_blockifier, ProverPerContractStorage
 use rpc_replay::block_context::build_block_context;
 use rpc_replay::rpc_state_reader::AsyncRpcStateReader;
 use rpc_replay::transactions::starknet_rs_to_blockifier;
-use rpc_utils::{get_class_proofs, get_storage_proofs, RpcStorage, TrieNode};
+use rpc_utils::{get_class_proofs, get_storage_proofs, process_function_invocations, RpcStorage, TrieNode};
 use starknet::core::types::{
-    BlockId, ExecuteInvocation, FunctionInvocation, MaybePendingBlockWithTxs, MaybePendingStateUpdate, TransactionTrace,
+    BlockId, ExecuteInvocation, MaybePendingBlockWithTxs, MaybePendingStateUpdate, TransactionTrace,
 };
 use starknet::providers::jsonrpc::HttpTransport;
 use starknet::providers::{JsonRpcClient, Provider, Url};
@@ -200,14 +200,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    // utility to extract all contract address in a nested call structure
-    fn process_function_invocations(inv: FunctionInvocation, contracts: &mut HashSet<Felt252>, nesting_level: u64) {
-        log::info!("process_function_inv: contract: {:x} at level {}", inv.contract_address, nesting_level);
-        contracts.insert(inv.contract_address);
-        for call in inv.calls {
-            process_function_invocations(call, contracts, nesting_level + 1);
-        }
-    }
     // extract other contracts used in our block from the block trace
     let mut contracts_subcalled = HashSet::new();
     let traces = provider.trace_block_transactions(block_id).await.expect("Failed to get block tx traces");
