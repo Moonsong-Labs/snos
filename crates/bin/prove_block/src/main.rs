@@ -405,12 +405,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let previous_storage_entries = previous_storage_changes_by_contract
             .get(&contract_address)
             .unwrap();
+        let storage_entries = storage_changes_by_contract
+            .get(&contract_address)
+            .unwrap();
 
         log::debug!("Storage root 0x{:x} for contract 0x{:x}", Into::<Felt252>::into(contract_storage_root), contract_address);
 
         // write storage facts before they're needed (TODO: should probably consolidate all fact writing)
-        for storage_entry in previous_storage_entries {
-        // for storage_entry in previous_storage_entries.iter().chain(storage_entries.iter()) {
+        // for storage_entry in previous_storage_entries {
+        for storage_entry in previous_storage_entries.iter().chain(storage_entries.iter()) {
             let fact = StorageLeaf::new(storage_entry.value);
             fact.set_fact(&mut initial_state.ffc_for_class_hash).await?;
         }

@@ -118,7 +118,6 @@ impl PerContractStorage for ProverPerContractStorage {
             return Some(*value);
         } else {
             let key_felt = Felt252::from(key.clone());
-            // TODO: this should be fallible
             let value = self.provider.get_storage_at(self.contract_address, key_felt, self.block_id).await.unwrap();
             self.ongoing_storage_changes.insert(key, value);
             Some(value)
